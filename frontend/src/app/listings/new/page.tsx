@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
 import { ErrorNote, PageHeader, RiskPanel } from '@/components/Bits'
 import { MapView } from '@/components/MapView'
+import { cleanPersonality, PersonalityFields } from '@/components/Personality'
 import {
   get,
   post,
@@ -350,6 +351,23 @@ function Form() {
               </div>
             </div>
           </section>
+
+          {form.listing_type !== 'lease_takeover' || form.lifestyle.personality ? (
+            <section className="card grid gap-5 p-6">
+              <div>
+                <h2 className="font-display text-xl font-bold">The roommates</h2>
+                <p className="mt-1 text-sm text-ink-soft">
+                  What are the people who stay like to live with? Students are matched on this, and it shows
+                  on your listing as &ldquo;Who you&rsquo;d live with&rdquo;. Skip it if nobody stays.
+                </p>
+              </div>
+              <PersonalityFields
+                who="roommates"
+                value={form.lifestyle.personality}
+                onChange={(personality) => life({ personality: cleanPersonality(personality) ?? null })}
+              />
+            </section>
+          ) : null}
         </div>
 
         <aside className="grid content-start gap-5 lg:sticky lg:top-24 lg:self-start">

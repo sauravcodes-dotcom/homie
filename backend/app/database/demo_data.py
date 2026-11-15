@@ -236,6 +236,72 @@ class DemoListing:
     notes: list[dict] = field(default_factory=list)
 
 
+ABOUT_ROOMMATES = (
+    "Two juniors, one in business and one in CS.",
+    "Grad students who are out at the lab most days.",
+    "A film major and a pre-med who cook dinner together most Sundays.",
+    "Seniors on the club soccer team.",
+    "Two sophomores who like having friends over for game nights.",
+    "An engineering master's student and an architecture junior.",
+    "Transfer students, both pretty easy to live with.",
+    "A music major who practices on campus and a quiet econ student.",
+)
+
+
+def personality_for(index: int, listing_type: str, lifestyle: dict) -> dict | None:
+    """The current roommates' personality for a demo listing, consistent with its household
+    habits (a guest-heavy, noise-tolerant home reads as social). Separate RNG per listing so
+    adding this did not change any other generated field."""
+    rng = random.Random(50_000 + index)
+    if listing_type == "lease_takeover" and rng.random() < 0.6:
+        return None  # usually the whole lease: nobody stays behind
+    guests = lifestyle.get("guests_frequency", 3)
+    noise = lifestyle.get("noise_tolerance", 3)
+    lean = (guests + noise) / 2  # 1 quiet household .. 5 lively one
+    energy = max(1, min(5, round(lean + rng.uniform(-1.2, 1.2))))
+    vibe = "quiet" if lean <= 2.2 else "social" if lean >= 3.8 else "balanced"
+    if rng.random() < 0.15:
+        vibe = "balanced"
+    traits = ["organized"] if lifestyle.get("cleanliness", 3) >= 4 else ["laid_back"]
+    traits.append(
+        rng.choice(("talkative", "spontaneous", "adventurous"))
+        if energy >= 4
+        else rng.choice(("reserved", "planner", "homebody"))
+        if energy <= 2
+        else rng.choice(("planner", "spontaneous", "talkative", "homebody"))
+    )
+    interests = rng.sample(
+        (
+            "cooking",
+            "fitness",
+            "gaming",
+            "music",
+            "movies",
+            "outdoors",
+            "sports",
+            "art",
+            "reading",
+            "nightlife",
+            "tech",
+            "faith",
+        ),
+        k=rng.randint(2, 4),
+    )
+    if vibe == "quiet" and "nightlife" in interests:
+        interests.remove("nightlife")
+    out: dict = {
+        "social_energy": energy,
+        "home_vibe": vibe,
+        "study_style": rng.choice(("at_home", "library", "mix")),
+        "communication": rng.choice(("direct", "easygoing")),
+        "traits": traits,
+        "interests": interests,
+    }
+    if rng.random() < 0.6:
+        out["about"] = rng.choice(ABOUT_ROOMMATES)
+    return out
+
+
 def owner_name(index: int) -> str:
     rng = random.Random(10_000 + index)
     return f"{rng.choice(FIRST_NAMES)} {rng.choice(LAST_INITIALS)}."
@@ -251,7 +317,7 @@ def generate(count: int, seed: int = 2026) -> list[DemoListing]:
     type_weights = [t[1] for t in TYPES]
     out: list[DemoListing] = []
 
-    for _ in range(count):
+    for index in range(count):
         street = rng.choice(STREETS)
         ltype, _, title_tpl, (lo, hi) = rng.choices(TYPES, weights=type_weights)[0]
         beds = rng.choice((2, 2, 3, 3, 4, 4, 5))
@@ -284,6 +350,10 @@ def generate(count: int, seed: int = 2026) -> list[DemoListing]:
         diet = rng.choices(("veg", "non_veg", None), weights=(30, 45, 25))[0]
         if diet:
             lifestyle["diet"] = diet
+
+        personality = personality_for(index, ltype, lifestyle)
+        if personality:
+            lifestyle["personality"] = personality
 
         features = rng.sample(FEATURES, k=3)
         walk = rng.randint(4, 22)

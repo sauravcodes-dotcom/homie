@@ -6,6 +6,7 @@ import { useState, ViewTransition } from 'react'
 import { BenchmarkPanel, Empty, ErrorNote, RiskPanel, VerifiedBadge } from '@/components/Bits'
 import { ListingPhoto } from '@/components/ListingCard'
 import { MapView } from '@/components/MapView'
+import { RoommatesPanel } from '@/components/Personality'
 import { RoommateNotes } from '@/components/RoommateNotes'
 import { FactorBars, ScoreRing } from '@/components/Match'
 import { del, post, type Conversation, type Lifestyle, type Listing, type ListingDetail } from '@/lib/api'
@@ -185,6 +186,16 @@ export default function ListingPage() {
         {chips.length > 0 && (
           <div className="mt-6 flex flex-wrap gap-2">
             {chips.map((c) => <span key={c} className="chip">{c}</span>)}
+          </div>
+        )}
+
+        {listing.household && (
+          <div className="mt-10">
+            <RoommatesPanel
+              household={listing.household}
+              personality={listing.lifestyle.personality}
+              fit={listing.match?.personality_fit}
+            />
           </div>
         )}
 

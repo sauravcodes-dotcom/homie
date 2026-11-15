@@ -5,6 +5,69 @@ from pydantic import BaseModel, Field, model_validator
 
 SleepSchedule = Literal["early", "flexible", "late"]
 Diet = Literal["veg", "non_veg"]
+HomeVibe = Literal["quiet", "balanced", "social"]
+StudyStyle = Literal["at_home", "library", "mix"]
+Communication = Literal["direct", "easygoing"]
+
+# Fixed vocabularies keep personality comparable between people (free text is the bio's job).
+TRAITS = (
+    "organized",
+    "laid_back",
+    "talkative",
+    "reserved",
+    "spontaneous",
+    "planner",
+    "homebody",
+    "adventurous",
+)
+INTERESTS = (
+    "cooking",
+    "fitness",
+    "gaming",
+    "music",
+    "movies",
+    "outdoors",
+    "sports",
+    "art",
+    "reading",
+    "nightlife",
+    "tech",
+    "faith",
+)
+Trait = Literal[TRAITS]  # type: ignore[valid-type]
+Interest = Literal[INTERESTS]  # type: ignore[valid-type]
+
+
+class Personality(BaseModel):
+    """Who a person is to live with. On a listing it describes the current roommates.
+    Every field is optional; only fields both sides filled in are compared."""
+
+    social_energy: int | None = Field(
+        default=None, ge=1, le=5, description="1 recharges alone, 5 always around people"
+    )
+    home_vibe: HomeVibe | None = None
+    study_style: StudyStyle | None = None
+    communication: Communication | None = Field(
+        default=None, description="direct: says it right away; easygoing: lets small things go"
+    )
+    traits: list[Trait] = Field(default_factory=list, max_length=4)
+    interests: list[Interest] = Field(default_factory=list, max_length=6)
+    about: str | None = Field(
+        default=None, max_length=400, description="Listings: a line about the roommates"
+    )
+
+    def is_empty(self) -> bool:
+        return not any(
+            (
+                self.social_energy,
+                self.home_vibe,
+                self.study_style,
+                self.communication,
+                self.traits,
+                self.interests,
+                self.about,
+            )
+        )
 
 
 class Lifestyle(BaseModel):
@@ -18,6 +81,7 @@ class Lifestyle(BaseModel):
     drinking: bool | None = None
     diet: Diet | None = None
     pets: bool | None = None
+    personality: Personality | None = None
 
 
 class SeekerCriteria(BaseModel):
@@ -56,7 +120,7 @@ class ListingCriteria(BaseModel):
 
 
 class FactorScore(BaseModel):
-    factor: Literal["budget", "dates", "location", "lifestyle", "semantic"]
+    factor: Literal["budget", "dates", "location", "lifestyle", "personality", "semantic"]
     score: float = Field(ge=0, le=1)
     weight: float
     reason: str
@@ -68,6 +132,9 @@ class MatchResult(BaseModel):
     factors: list[FactorScore]
     highlights: list[str] = Field(description="Strongest reasons this is a good fit")
     concerns: list[str] = Field(description="Factors that weaken the match")
+    personality_fit: str | None = Field(
+        default=None, description="How the two personalities fit, in a sentence or two"
+    )
 
 
 class ScoreRequest(BaseModel):

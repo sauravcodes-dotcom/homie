@@ -1,12 +1,13 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, computed_field, model_validator
 
 from app.models.listing import ListingType
 from app.schemas.auth import PublicUser
 from app.schemas.matching import Lifestyle, MatchResult
 from app.schemas.rating import RatingSummary
+from app.services.matching.personality import describe
 
 PhotoUrl = str
 
@@ -144,6 +145,12 @@ class ListingOut(BaseModel):
     risk: RiskReport | None = None
     travel: TravelEstimate | None = None
 
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def household(self) -> str | None:
+        """Who you would live with: the roommates' personality, in a sentence or two."""
+        return describe(self.lifestyle.personality, plural=True)
+
 
 class ListingDetail(ListingOut):
     feedback: list[FeedbackOut] = Field(default_factory=list)
@@ -187,6 +194,11 @@ class RoommateCard(BaseModel):
     preferred_neighborhoods: list[str]
     lifestyle: Lifestyle
     match: MatchResult
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def personality_summary(self) -> str | None:
+        return describe(self.lifestyle.personality)
 
 
 class SwipeIn(BaseModel):

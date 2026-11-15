@@ -4,10 +4,12 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { ErrorNote } from '@/components/Bits'
 import { ListingCard } from '@/components/ListingCard'
+import { INTEREST_LABEL, RoommatesPanel, TRAIT_LABEL } from '@/components/Personality'
 import { post, type AISearchResponse, type Understood } from '@/lib/api'
 import { day, usd } from '@/lib/format'
 
 const EXAMPLES = [
+  'Room under $1,400 near campus with chill, introverted roommates who are into gaming and cooking.',
   'Vegetarian grad student, quiet, no smoking. Under $1,300 from January to May, walking distance to campus.',
   'Furnished room with parking for summer, budget $1,500, I have a cat.',
   'Take over a lease near Figueroa next academic year, up to $2,800, clean roommates who split chores.',
@@ -155,6 +157,7 @@ function AIResults({ result }: { result: AISearchResponse }) {
                 <p className="mt-2 text-xs text-ink-soft">Includes: {feature_hits.join(', ')}</p>
               )}
             </div>
+            <RoommatesPanel compact household={listing.household} fit={match.personality_fit} />
           </li>
         ))}
       </ol>
@@ -181,6 +184,13 @@ function chips(u: Understood): string[] {
   if (u.pets === false) out.push('No pets')
   if (u.diet) out.push(u.diet === 'veg' ? 'Vegetarian' : 'Non-veg')
   for (const m of u.must_haves) out.push(`Needs ${m}`)
+  const r = u.roommate_personality
+  if (r) {
+    if (r.social_energy) out.push(r.social_energy <= 2 ? 'Introverted roommates' : r.social_energy >= 4 ? 'Social roommates' : 'Balanced roommates')
+    if (r.home_vibe) out.push({ quiet: 'Quiet home', balanced: 'Balanced home', social: 'Lively home' }[r.home_vibe])
+    for (const t of r.traits ?? []) out.push(TRAIT_LABEL[t])
+    for (const i of r.interests ?? []) out.push(`Into ${INTEREST_LABEL[i].toLowerCase()}`)
+  }
   return out.length ? out : ['No specific preferences found, showing the best overall fits']
 }
 

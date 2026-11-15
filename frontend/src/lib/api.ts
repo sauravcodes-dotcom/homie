@@ -130,6 +130,23 @@ export type Lifestyle = {
   drinking?: boolean | null
   diet?: 'veg' | 'non_veg' | null
   pets?: boolean | null
+  personality?: Personality | null
+}
+
+export const TRAITS = ['organized', 'laid_back', 'talkative', 'reserved', 'spontaneous', 'planner', 'homebody', 'adventurous'] as const
+export const INTERESTS = ['cooking', 'fitness', 'gaming', 'music', 'movies', 'outdoors', 'sports', 'art', 'reading', 'nightlife', 'tech', 'faith'] as const
+export type Trait = (typeof TRAITS)[number]
+export type Interest = (typeof INTERESTS)[number]
+
+/** Who someone is to live with. On a listing it describes the current roommates. */
+export type Personality = {
+  social_energy?: number | null
+  home_vibe?: 'quiet' | 'balanced' | 'social' | null
+  study_style?: 'at_home' | 'library' | 'mix' | null
+  communication?: 'direct' | 'easygoing' | null
+  traits?: Trait[]
+  interests?: Interest[]
+  about?: string | null
 }
 
 export type Session = { token: string; user: User }
@@ -188,7 +205,7 @@ export type ListingCriteria = {
   lifestyle?: Lifestyle
 }
 
-export type Factor = 'budget' | 'dates' | 'location' | 'lifestyle' | 'semantic'
+export type Factor = 'budget' | 'dates' | 'location' | 'lifestyle' | 'personality' | 'semantic'
 export type FactorScore = { factor: Factor; score: number; weight: number; reason: string }
 export type MatchResult = {
   listing_id: string | number | null
@@ -196,6 +213,8 @@ export type MatchResult = {
   factors: FactorScore[]
   highlights: string[]
   concerns: string[]
+  /** How the two personalities fit, in a sentence or two. */
+  personality_fit?: string | null
 }
 
 export type ListingType = 'sublease' | 'lease_takeover' | 'room' | 'roommate_replacement'
@@ -241,6 +260,8 @@ export type Listing = {
   is_saved: boolean
   risk: RiskReport | null
   travel: Travel | null
+  /** The current roommates' personality, in a sentence or two. */
+  household: string | null
 }
 export type ListingDetail = Listing & {
   feedback: Feedback[]
@@ -289,6 +310,7 @@ export type RoommateCard = {
   preferred_neighborhoods: string[]
   lifestyle: Lifestyle
   match: MatchResult
+  personality_summary: string | null
 }
 
 export type MapPoint = {
@@ -444,6 +466,7 @@ export type Understood = {
   pets?: boolean | null
   diet?: 'veg' | 'non_veg' | null
   must_haves: string[]
+  roommate_personality?: Personality | null
 }
 
 export type AISearchResponse = {

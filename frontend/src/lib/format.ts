@@ -42,6 +42,7 @@ export const FACTOR_LABEL: Record<string, string> = {
   dates: 'Dates',
   location: 'Location',
   lifestyle: 'Lifestyle',
+  personality: 'Personality',
   semantic: 'Vibe',
 }
 

@@ -5,7 +5,8 @@ import { useState } from 'react'
 import { AIMatch } from '@/components/AISearch'
 import { Empty, ErrorNote, PageHeader } from '@/components/Bits'
 import { ListingCard } from '@/components/ListingCard'
-import { post, type FeedItem, type Lifestyle, type ListingMatchResponse, type ListingType } from '@/lib/api'
+import { cleanPersonality, hasPersonality, PersonalityFields, RoommatesPanel } from '@/components/Personality'
+import { post, type FeedItem, type Lifestyle, type ListingMatchResponse, type ListingType, type Personality } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { NEIGHBORHOODS, todayISO, TYPE_LABEL, usd } from '@/lib/format'
 
@@ -24,6 +25,7 @@ type Form = {
   drinking: boolean
   pets: boolean
   diet: '' | 'veg' | 'non_veg'
+  personality: Personality
 }
 
 const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item])
@@ -44,6 +46,7 @@ export default function MatchPage() {
     drinking: false,
     pets: false,
     diet: '',
+    personality: {},
   })
   const [results, setResults] = useState<FeedItem[] | null>(null)
   const [scanned, setScanned] = useState(0)
@@ -62,6 +65,7 @@ export default function MatchPage() {
       pets: form.pets,
       ...(form.sleep ? { sleep_schedule: form.sleep } : {}),
       ...(form.diet ? { diet: form.diet } : {}),
+      ...(cleanPersonality(form.personality) ? { personality: cleanPersonality(form.personality) } : {}),
     }
     try {
       const res = await post<ListingMatchResponse>('/matching/listings', {
@@ -89,7 +93,7 @@ export default function MatchPage() {
     <>
       <PageHeader eyebrow="No account needed" title="Find my match">
         Describe what you need in plain English. HOMIE's AI reads it, scores every open listing
-        on rent, dates, location and how you live, then explains its top picks.
+        on rent, dates, location, how you live and who the roommates are, then explains its top picks.
       </PageHeader>
 
       <AIMatch />
@@ -187,6 +191,17 @@ export default function MatchPage() {
             ))}
           </div>
 
+          <fieldset className="grid gap-4 border-t border-line pt-5">
+            <legend className="sr-only">Your personality</legend>
+            <div>
+              <p className="display text-xl font-extrabold">Who you are</p>
+              <p className="mt-1 text-sm text-ink-soft">
+                Matched against the roommates already living in each place. Skip anything you like.
+              </p>
+            </div>
+            <PersonalityFields value={form.personality} onChange={(v) => set('personality', v)} />
+          </fieldset>
+
           <ErrorNote message={error} />
           <button type="submit" className="btn btn-gold py-3.5" disabled={busy}>
             {busy ? 'Scoring listings…' : 'Find my matches'}
@@ -207,19 +222,23 @@ export default function MatchPage() {
             <>
               <p className="text-sm text-ink-soft">
                 Scored {scanned.toLocaleString()} open listings. Top {results.length}, best first.
+                {!hasPersonality(form.personality) && ' Add who you are on the left to match on the roommates too.'}
               </p>
               <div className="mt-4 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {results.map((r) => (
                   <div key={r.listing.id}>
                     <ListingCard listing={r.listing} match={r.match} />
                     <ul className="mt-2 grid gap-1 px-1 text-xs text-ink-soft">
-                      {r.match.highlights.slice(0, 2).map((h) => (
+                      {r.match.highlights.filter((h) => !h.startsWith('Personality')).slice(0, 2).map((h) => (
                         <li key={h} className="flex gap-1.5"><span className="text-ok" aria-hidden>✓</span>{h}</li>
                       ))}
-                      {r.match.concerns.slice(0, 1).map((c) => (
+                      {r.match.concerns.filter((c) => !c.startsWith('Personality')).slice(0, 1).map((c) => (
                         <li key={c} className="flex gap-1.5"><span className="text-warn" aria-hidden>!</span>{c}</li>
                       ))}
                     </ul>
+                    <div className="mt-2.5">
+                      <RoommatesPanel compact household={r.listing.household} fit={r.match.personality_fit} />
+                    </div>
                   </div>
                 ))}
               </div>

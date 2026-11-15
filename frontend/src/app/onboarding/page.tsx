@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { ErrorNote } from '@/components/Bits'
+import { cleanPersonality, PersonalityFields } from '@/components/Personality'
 import { get, patch, put, type Lifestyle, type Profile } from '@/lib/api'
 import { useRequireAuth } from '@/lib/auth'
 import { NEIGHBORHOODS, todayISO, usd } from '@/lib/format'
@@ -230,6 +231,17 @@ export default function Onboarding() {
             <Pills label="Pets" value={draft.lifestyle.pets} onChange={(v) => life({ pets: v })} options={[{ value: false, label: 'No pets' }, { value: true, label: 'Have or want pets' }]} />
           </div>
         </div>
+      ),
+    },
+    {
+      title: 'What are you like to live with?',
+      hint: 'HOMIE matches this against the roommates already in each place, and against other students. Skip anything.',
+      valid: true,
+      body: (
+        <PersonalityFields
+          value={draft.lifestyle.personality}
+          onChange={(personality) => life({ personality: cleanPersonality(personality) ?? null })}
+        />
       ),
     },
     {

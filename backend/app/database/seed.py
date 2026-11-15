@@ -15,6 +15,17 @@ logger = logging.getLogger("homie")
 LORENZO_OWNER_EMAIL = f"lorenzo.subleaser@{DEMO_EMAIL_DOMAIN}"
 
 
+LORENZO_ROOMMATES = {
+    "social_energy": 4,
+    "home_vibe": "balanced",
+    "study_style": "library",
+    "communication": "easygoing",
+    "traits": ["laid_back", "talkative"],
+    "interests": ["music", "cooking", "sports"],
+    "about": "Two seniors who are friendly, cook together and are out on campus most days.",
+}
+
+
 def seed_demo_data(db: Session) -> None:
     _seed_lorenzo(db)
     target = get_settings().demo_listing_count
@@ -22,6 +33,7 @@ def seed_demo_data(db: Session) -> None:
         return
     existing = db.scalar(select(func.count()).select_from(Listing).where(Listing.is_demo.is_(True)))
     if existing and existing > 1:
+        _backfill_personality(db, target)
         return
     started = datetime.now(UTC)
     _seed_bulk(db, target)
@@ -74,6 +86,7 @@ def _seed_lorenzo(db: Session) -> None:
             "smoking": False,
             "drinking": True,
             "pets": False,
+            "personality": LORENZO_ROOMMATES,
         },
         is_demo=True,
         created_at=datetime.now(UTC),
@@ -90,6 +103,33 @@ def _seed_lorenzo(db: Session) -> None:
         )
     )
     db.commit()
+
+
+def _backfill_personality(db: Session, count: int) -> None:
+    """Demo listings seeded before roommate personalities existed get them now, once."""
+    sample = db.scalars(
+        select(Listing)
+        .where(Listing.is_demo.is_(True), Listing.unit.is_distinct_from("3157"))
+        .limit(40)
+    ).all()
+    if any("personality" in (r.lifestyle or {}) for r in sample):
+        return
+    generated = generate(count)
+    rows = db.scalars(
+        select(Listing)
+        .where(Listing.is_demo.is_(True), Listing.unit.is_distinct_from("3157"))
+        .order_by(Listing.id)
+    ).all()
+    for row, demo in zip(rows, generated, strict=False):
+        if "personality" in demo.lifestyle and row.listing_type == demo.listing_type:
+            row.lifestyle = {**(row.lifestyle or {}), "personality": demo.lifestyle["personality"]}
+    lorenzo = db.scalars(
+        select(Listing).where(Listing.is_demo.is_(True), Listing.unit == "3157")
+    ).first()
+    if lorenzo and "personality" not in (lorenzo.lifestyle or {}):
+        lorenzo.lifestyle = {**(lorenzo.lifestyle or {}), "personality": LORENZO_ROOMMATES}
+    db.commit()
+    logger.info("Backfilled roommate personalities on demo listings")
 
 
 def _seed_bulk(db: Session, count: int) -> None:

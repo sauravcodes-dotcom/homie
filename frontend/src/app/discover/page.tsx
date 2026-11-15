@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useState } from 'react'
 import { Empty, ErrorNote, VerifiedBadge } from '@/components/Bits'
 import { ListingPhoto } from '@/components/ListingCard'
+import { RoommatesPanel } from '@/components/Personality'
 import { ScoreRing } from '@/components/Match'
 import { SwipeDeck } from '@/components/SwipeDeck'
 import { post, type FeedItem, type RoommateCard } from '@/lib/api'
@@ -109,6 +110,11 @@ function RoommateFace({ card }: { card: RoommateCard }) {
             ))}
           </div>
           <Reasons highlights={card.match.highlights} concerns={card.match.concerns} />
+          {(card.personality_summary || card.match.personality_fit) && (
+            <div className="mt-3">
+              <RoommatesPanel compact title="Personality" household={card.personality_summary} fit={card.match.personality_fit} />
+            </div>
+          )}
         </div>
         <ScoreRing score={card.match.score} />
       </div>

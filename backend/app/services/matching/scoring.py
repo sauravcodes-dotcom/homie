@@ -16,6 +16,7 @@ from app.schemas.matching import (
     MatchResult,
     SeekerCriteria,
 )
+from app.services.matching.personality import personality_factor
 
 # USC University Park Campus (Tommy Trojan).
 USC_LAT, USC_LNG = 34.0205, -118.2856
@@ -25,6 +26,7 @@ WEIGHTS = {
     "dates": 0.25,
     "location": 0.20,
     "lifestyle": 0.25,
+    "personality": 0.20,
     "semantic": 0.15,
 }
 
@@ -48,6 +50,26 @@ def score_match(
     lifestyle = _lifestyle(seeker.lifestyle, listing.lifestyle)
     if lifestyle:
         factors.append(lifestyle)
+    # On a listing, personality describes the roommates already living there.
+    fit = personality_factor(
+        seeker.lifestyle.personality,
+        listing.lifestyle.personality,
+        weight=WEIGHTS["personality"],
+        them_label="the roommates",
+    )
+    if fit:
+        factors.append(fit[0])
+    elif _has_personality(seeker.lifestyle) and not _has_personality(listing.lifestyle):
+        # The seeker cares who they live with but this listing says nothing about it: neutral,
+        # at half weight, so places with a known good fit can rank above unknowns.
+        factors.append(
+            FactorScore(
+                factor="personality",
+                score=0.5,
+                weight=WEIGHTS["personality"] / 2,
+                reason="No roommate personality listed",
+            )
+        )
     if semantic_similarity is not None:
         sim = max(0.0, min(1.0, semantic_similarity))
         factors.append(
@@ -68,7 +90,12 @@ def score_match(
         factors=factors,
         highlights=[f.reason for f in ranked if f.score >= 0.75],
         concerns=[f.reason for f in reversed(ranked) if f.score < 0.5],
+        personality_fit=fit[1] if fit else None,
     )
+
+
+def _has_personality(lifestyle: Lifestyle) -> bool:
+    return lifestyle.personality is not None and not lifestyle.personality.is_empty()
 
 
 def rank_listings(
@@ -282,6 +309,10 @@ def score_roommates(
     if lifestyle:
         # Day-to-day habits matter most between people sharing a home.
         factors.append(lifestyle.model_copy(update={"weight": 0.40}))
+    # Between two people who would share a home, personality weighs about as much as habits.
+    fit = personality_factor(me.lifestyle.personality, other.lifestyle.personality, weight=0.35)
+    if fit:
+        factors.append(fit[0])
     if semantic_similarity is not None:
         sim = max(0.0, min(1.0, semantic_similarity))
         factors.append(
@@ -302,4 +333,5 @@ def score_roommates(
         factors=factors,
         highlights=[f.reason for f in ranked if f.score >= 0.75],
         concerns=[f.reason for f in reversed(ranked) if f.score < 0.5],
+        personality_fit=fit[1] if fit else None,
     )
