@@ -72,6 +72,22 @@ class RentBenchmark(BaseModel):
     verdict: Literal["below", "typical", "above"]
 
 
+class FairPrice(BaseModel):
+    """Rent against the median of genuinely similar listings (same kind and size of space,
+    walking distance and timing, widened only when there are too few)."""
+
+    verdict: Literal["below", "fair", "above"]
+    headline: str = Field(description='Short badge text, e.g. "$140 above similar"')
+    summary: str = Field(description="One sentence naming exactly what it was compared with")
+    compared_with: str
+    sample_size: int
+    median: int
+    p25: int
+    p75: int
+    diff_dollars: int
+    diff_pct: float
+
+
 class TravelEstimate(BaseModel):
     miles: float
     walk_minutes: int
@@ -144,6 +160,7 @@ class ListingOut(BaseModel):
     is_saved: bool = False
     risk: RiskReport | None = None
     travel: TravelEstimate | None = None
+    fair_price: FairPrice | None = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property

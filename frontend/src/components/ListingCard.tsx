@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { ViewTransition } from 'react'
 import { Tilt } from './Tilt'
+import { FairPriceBadge } from './Bits'
 import type { Listing, MatchResult } from '@/lib/api'
 import { dateRange, TYPE_LABEL, usd } from '@/lib/format'
 import { photoName, rememberListing } from '@/lib/peek'
@@ -75,6 +76,7 @@ export function ListingCard({ listing, match }: { listing: Listing; match?: Matc
             .filter(Boolean)
             .join(' · ')}
         </p>
+        <FairPriceBadge fairPrice={listing.fair_price} className="mt-3" />
       </div>
     </Link>
     </Tilt>

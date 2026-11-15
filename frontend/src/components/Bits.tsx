@@ -2,7 +2,7 @@
 
 import { motion } from 'motion/react'
 import { Fragment } from 'react'
-import type { Benchmark, RiskReport } from '@/lib/api'
+import type { Benchmark, FairPrice, RiskReport } from '@/lib/api'
 import { usd } from '@/lib/format'
 
 export function Stars({ value, size = 'size-4' }: { value: number; size?: string }) {
@@ -107,6 +107,56 @@ export function RiskPanel({ risk }: { risk: RiskReport | null }) {
       </ul>
       <p className="mt-3 text-xs text-ink-soft">
         Automatic checks, not accusations. Never pay before you have seen the place and signed.
+      </p>
+    </section>
+  )
+}
+
+const FAIR_CHIP = { below: 'chip-ok', fair: '', above: 'chip-warn' } as const
+
+/** Short fair-price badge for cards. The full sentence is in the tooltip and on the listing page. */
+export function FairPriceBadge({ fairPrice, className = '' }: { fairPrice?: FairPrice | null; className?: string }) {
+  if (!fairPrice) return null
+  return (
+    <span className={`chip ${FAIR_CHIP[fairPrice.verdict]} ${className}`} title={fairPrice.summary}>
+      {fairPrice.headline}
+    </span>
+  )
+}
+
+/** Where this rent sits among similar listings: a range bar plus exactly what it was compared with. */
+export function FairPricePanel({ fairPrice, rent }: { fairPrice: FairPrice; rent: number }) {
+  const lo = Math.min(fairPrice.p25, rent) * 0.9
+  const hi = Math.max(fairPrice.p75, rent) * 1.1
+  const at = (v: number) => `${((v - lo) / (hi - lo)) * 100}%`
+  return (
+    <section className="card p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-lg font-bold">Fair price check</h2>
+        <FairPriceBadge fairPrice={fairPrice} />
+      </div>
+      <div className="relative mt-9 h-2 rounded-full bg-surface-2">
+        <span
+          className="absolute inset-y-0 rounded-full bg-ink-soft/40"
+          style={{ left: at(fairPrice.p25), right: `calc(100% - ${at(fairPrice.p75)})` }}
+          aria-hidden
+        />
+        <span className="absolute -top-1 h-4 w-0.5 bg-ink-soft" style={{ left: at(fairPrice.median) }} aria-hidden />
+        <span
+          className="absolute -top-6 -translate-x-1/2 rounded-md bg-gold px-1.5 py-0.5 text-[11px] font-bold text-[#1d0808]"
+          style={{ left: at(rent) }}
+        >
+          {usd(rent)}
+        </span>
+        <span
+          className="absolute -top-1.5 size-5 -translate-x-1/2 rounded-full border-2 border-bg bg-gold"
+          style={{ left: at(rent) }}
+          aria-hidden
+        />
+      </div>
+      <p className="mt-4 text-sm">{fairPrice.summary}</p>
+      <p className="mt-1.5 text-sm text-ink-soft">
+        Median {usd(fairPrice.median)}. The middle half of those listings ask {usd(fairPrice.p25)} to {usd(fairPrice.p75)}.
       </p>
     </section>
   )

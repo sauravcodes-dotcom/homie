@@ -232,6 +232,21 @@ export type Benchmark = {
   verdict: 'below' | 'typical' | 'above'
 }
 
+/** Rent against the median of genuinely similar listings: same kind and size of space, walking
+ *  distance and timing. `compared_with` says exactly which listings those were. */
+export type FairPrice = {
+  verdict: 'below' | 'fair' | 'above'
+  headline: string
+  summary: string
+  compared_with: string
+  sample_size: number
+  median: number
+  p25: number
+  p75: number
+  diff_dollars: number
+  diff_pct: number
+}
+
 export type Listing = {
   id: number
   listing_type: ListingType
@@ -260,6 +275,7 @@ export type Listing = {
   is_saved: boolean
   risk: RiskReport | null
   travel: Travel | null
+  fair_price?: FairPrice | null
   /** The current roommates' personality, in a sentence or two. */
   household: string | null
 }

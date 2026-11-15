@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useState } from 'react'
-import { Empty, ErrorNote, VerifiedBadge } from '@/components/Bits'
+import { Empty, ErrorNote, FairPriceBadge, VerifiedBadge } from '@/components/Bits'
 import { ListingPhoto } from '@/components/ListingCard'
 import { RoommatesPanel } from '@/components/Personality'
 import { ScoreRing } from '@/components/Match'
@@ -48,6 +48,7 @@ function ListingFace({ item }: { item: FeedItem }) {
                 {listing.risk.level === 'high' ? 'Red flags' : 'Check details'}
               </span>
             )}
+            <FairPriceBadge fairPrice={listing.fair_price} className={`bg-black/60 ${listing.fair_price?.verdict === 'fair' ? 'border-white/20 text-white' : ''}`} />
           </span>
           <p className="display mt-2 text-5xl font-extrabold">
             {usd(listing.monthly_rent)}

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useState, ViewTransition } from 'react'
-import { BenchmarkPanel, Empty, ErrorNote, RiskPanel, VerifiedBadge } from '@/components/Bits'
+import { BenchmarkPanel, Empty, FairPriceBadge, FairPricePanel, ErrorNote, RiskPanel, VerifiedBadge } from '@/components/Bits'
 import { ListingPhoto } from '@/components/ListingCard'
 import { WalkToClass } from '@/components/WalkToClass'
 import { RoommatesPanel } from '@/components/Personality'
@@ -223,6 +223,7 @@ export default function ListingPage() {
             {usd(listing.monthly_rent)}
             <span className="font-sans text-lg font-medium tracking-normal text-ink-soft"> /mo</span>
           </p>
+          <FairPriceBadge fairPrice={listing.fair_price} className="mt-3" />
           <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
             <span className="text-ink-soft">Posted by</span>
             <Link href={`/people/${listing.owner.id}`} className="font-bold underline decoration-line underline-offset-4 hover:decoration-accent">
@@ -265,7 +266,11 @@ export default function ListingPage() {
           </section>
         )}
         <RiskPanel risk={listing.risk} />
-        <BenchmarkPanel benchmark={listing.benchmark} rent={listing.monthly_rent} />
+        {listing.fair_price ? (
+          <FairPricePanel fairPrice={listing.fair_price} rent={listing.monthly_rent} />
+        ) : (
+          <BenchmarkPanel benchmark={listing.benchmark} rent={listing.monthly_rent} />
+        )}
       </aside>
     </div>
   )

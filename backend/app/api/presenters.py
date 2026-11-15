@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models import Apartment, Listing, SeekerProfile, Swipe, User
 from app.schemas.listing import FeedbackSummary, ListingOut, RiskReport
 from app.schemas.matching import Lifestyle, ListingCriteria, SeekerCriteria
+from app.services.housing.fair_price import fair_prices
 from app.services.housing.geo import travel_to_campus
 from app.services.listings import feedback_summaries
 from app.services.people import display_name, public_user
@@ -33,6 +34,7 @@ def listings_out(db: Session, rows: list[Listing], viewer: User | None) -> list[
         else {}
     )
     feedback = feedback_summaries(db, [r.id for r in rows])
+    prices = fair_prices(db, rows)
 
     def building(r: Listing) -> Apartment | None:
         return apartments.get(r.apartment_id) if r.apartment_id else None
@@ -78,6 +80,7 @@ def listings_out(db: Session, rows: list[Listing], viewer: User | None) -> list[
             is_saved=r.id in saved,
             risk=RiskReport.model_validate(r.risk) if r.risk else None,
             travel=travel_to_campus(r.latitude, r.longitude),
+            fair_price=prices.get(r.id),
         )
         for r in rows
     ]

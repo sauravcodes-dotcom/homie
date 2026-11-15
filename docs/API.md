@@ -170,6 +170,8 @@ All of these need `Authorization: Bearer <token>` unless marked public.
 | `POST /api/ai/listing-draft` | Rough notes to title and description. |
 | `POST /api/ai/risk-check` (public) | Preview the red-flag check for a draft. |
 | `GET /api/benchmark` (public) | Rent vs comparable listings, with sample size. |
+
+Every listing in any response also carries `fair_price`: `verdict` (`below`, `fair` within 7%, `above`), a short `headline` for badges ("$140 above similar"), a `summary` sentence, `compared_with` (exactly which listings, e.g. "similar private rooms in 2-beds within a 10-minute walk starting around the same time"), `sample_size`, `median`, `p25`, `p75`, `diff_dollars` and `diff_pct`. Comparables share the kind of space (private room in an N-bed, studio, or whole N-bed unit), the walking band to campus (10 min, 10 to 20, over 20) and a start date within 45 days; when fewer than 5 match, conditions are dropped one at a time and `compared_with` says which remain. Listings with high-risk red flags are never used as comparables. `null` when there are too few.
 | `GET /api/map/listings` (public) | Listings with coordinates and travel estimates. |
 | `GET/PUT /api/profile` | Lifestyle quiz answers. |
 | `GET /api/feed` | Listings ranked for the signed-in seeker. |

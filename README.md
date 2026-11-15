@@ -94,7 +94,7 @@ uvicorn app.main:app --reload
 | Sign-in | 6-digit code sent to a `@usc.edu` address. Without an email key the code is shown on screen (demo mode). |
 | Lifestyle quiz | Budget, dates, neighborhoods, sleep, cleanliness, smoking, drinking, diet, pets, bio. |
 | Discover | Swipe deck of ranked listings and (opt-in) roommates. Right saves, left passes. |
-| Listings | Post, browse and filter. Photos, map pin, AI listing writer, red-flag check, rent benchmark. |
+| Listings | Post, browse and filter. Photos, map pin, AI listing writer, red-flag check, fair-price badge on every listing (rent vs the median of the same kind and size of space, at the same walking distance and timing). |
 | Roommate notes | The student subleasing a room describes the roommates on the listing. |
 | Messages | In-app conversations with listers and saved roommates. |
 | Person reviews | Rate someone as a roommate, subletter or lister once you have both messaged each other. |
