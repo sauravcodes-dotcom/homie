@@ -31,8 +31,10 @@ function Stats({ run }: { run: boolean }) {
   return (
     <div className="relative isolate flex h-full items-center overflow-hidden bg-cardinal text-[#fff6e3]">
       <div className="absolute inset-0 -z-10" aria-hidden>
-        <motion.div className="absolute -top-1/4 -left-1/4 size-[70vmax] rounded-full bg-[#ffcc00] opacity-40 blur-[120px]" animate={{ x: ['0%', '30%', '0%'], y: ['0%', '20%', '0%'] }} transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }} />
-        <motion.div className="absolute -right-1/4 -bottom-1/4 size-[60vmax] rounded-full bg-[#ff5a1f] opacity-40 blur-[120px]" animate={{ x: ['0%', '-25%', '0%'], y: ['0%', '-15%', '0%'] }} transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }} />
+        {/* Drifting light blobs. Radial gradients look like the old 120px blur but are
+            free to move; animating two screen-sized blurred layers forever cost every frame. */}
+        <motion.div className="absolute -top-1/4 -left-1/4 size-[70vmax] rounded-full opacity-40 will-change-transform" style={{ background: 'radial-gradient(circle at center, #ffcc00 0%, #ffcc00 30%, transparent 70%)' }} animate={{ x: ['0%', '30%', '0%'], y: ['0%', '20%', '0%'] }} transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }} />
+        <motion.div className="absolute -right-1/4 -bottom-1/4 size-[60vmax] rounded-full opacity-40 will-change-transform" style={{ background: 'radial-gradient(circle at center, #ff5a1f 0%, #ff5a1f 30%, transparent 70%)' }} animate={{ x: ['0%', '-25%', '0%'], y: ['0%', '-15%', '0%'] }} transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }} />
         <div className="absolute inset-0 bg-[#4d0000]/40" />
       </div>
       <div className="shell py-20">

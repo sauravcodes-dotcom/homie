@@ -241,13 +241,17 @@ export function DeviceTour() {
         </div>
         <div className="hidden lg:block">
           <div className="sticky top-0 flex h-dvh items-center justify-center">
-            {/* One pre-blurred glow per step, crossfaded with opacity. Animating the colour
-                of a single 120px-blurred circle re-blurred it on every frame. */}
+            {/* One glow per step, crossfaded with opacity. Animating the colour of a single
+                120px-blurred circle re-blurred it on every frame. */}
             {STEPS.map((s, i) => (
               <div
                 key={s.title}
-                className="pointer-events-none absolute size-[34rem] rounded-full blur-[120px] transition-opacity duration-[800ms] will-change-[opacity]"
-                style={{ backgroundColor: s.glow, opacity: active === i ? 0.35 : 0 }}
+                className="pointer-events-none absolute size-[50rem] rounded-full transition-opacity duration-[800ms]"
+                style={{
+                  // Same soft glow as a 120px blur, drawn as a gradient so the GPU never re-blurs it.
+                  background: `radial-gradient(circle at center, ${s.glow} 0%, ${s.glow} 22%, transparent 68%)`,
+                  opacity: active === i ? 0.35 : 0,
+                }}
                 aria-hidden
               />
             ))}
