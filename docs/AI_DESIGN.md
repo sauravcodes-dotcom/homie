@@ -66,6 +66,26 @@ question ─► retrieve reviews (pgvector + apartment filter) ─► grounded a
 
 **Comparison (next):** run `aggregate_reviews` per apartment and weight categories by the user's stated priorities (for example "pests matter most").
 
+## Module C: rating engine
+
+**Current:** `services/rating/engine.py`, a Python port of the engine in [rating-model.html](rating-model.html). `tests/test_rating.py` pins it to the reference JS.
+
+- Apartments return `rating` (`score`, `low`-`high` 80% range, `rank_key`, `confidence`, `rated_reviews`) next to the plain `average_rating`, which stays for comparison and compatibility.
+- Roommate notes (`roommate_feedback.rating`) use the `subleaser` source: stars are read as a hint that runs high.
+- Sort "best" lists by `rank_key` (20th percentile), not by `score`.
+
+Deliberate choices:
+
+| Risk | Mitigation |
+| --- | --- |
+| No migrations (`create_all` never alters tables) | No new columns: trust comes from `is_verified_resident` (verified, else `student`), age from `created_at` / `lived_to` |
+| Fake campaigns back-dating `lived_to` | Freshness uses min(`lived_to`, post date); burst detection always uses the post date |
+| Guessed constants / grade inflation | The prior is fitted to the campus mean once there are ≥ 50 rated reviews; before that the doc's default (≈3.8★) |
+| Breaking API clients | Additive fields only |
+| Google fallback | Shown only when there are no HOMIE star ratings, labelled "Google rating"; never mixed into the engine |
+
+**Next:** a stored `review_source` (with an Alembic migration) for an anonymous tier; moderator view of the per-review "looks off" probability; topic scores and personal weights; new-tenant roommate ratings revealed together; monthly refit of the constants on real data.
+
 ## Trust and safety
 
 - Verified vs unverified reviews are stored separately (`is_verified_resident`) and always reported separately.

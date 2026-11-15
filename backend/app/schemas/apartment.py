@@ -3,6 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.rating import RatingSummary
 from app.schemas.review import ApartmentInsights
 
 
@@ -23,7 +24,10 @@ class ApartmentCard(BaseModel):
     longitude: float | None
     review_count: int
     verified_count: int
+    # Plain mean of the stars, kept for comparison and backwards compatibility.
     average_rating: float | None
+    # HOMIE score: trust-, freshness- and sample-size-aware. None = no star ratings.
+    rating: RatingSummary | None = None
     listing_count: int
 
 

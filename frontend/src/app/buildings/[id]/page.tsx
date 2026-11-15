@@ -328,7 +328,8 @@ export default function BuildingPage() {
     reloadBuilding()
     reloadReviews()
   }
-  const shownRating = b.average_rating ?? (b.insights_source === 'google' ? b.external.average_rating : null)
+  const googleRating = b.insights_source === 'google' ? b.external.average_rating : null
+  const shownRating = b.rating?.score ?? googleRating
 
   return (
     <div className="shell py-12">
@@ -338,11 +339,17 @@ export default function BuildingPage() {
         <p className="mt-3 text-lg text-ink-soft">{[b.address, b.neighborhood].filter(Boolean).join(' · ')}</p>
         <dl className="mt-7 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="card p-4">
-            <dt className="text-sm text-ink-soft">{b.average_rating === null && shownRating !== null ? 'Google rating' : 'Rating'}</dt>
+            <dt className="text-sm text-ink-soft">{!b.rating && shownRating !== null ? 'Google rating' : 'HOMIE score'}</dt>
             <dd className="display mt-1 flex items-center gap-2 text-4xl font-extrabold">
               {shownRating !== null ? shownRating.toFixed(1) : '–'}
               {shownRating !== null && <Stars value={shownRating} />}
             </dd>
+            {b.rating && (
+              <dd className="mt-1 text-xs text-ink-soft">
+                Likely {b.rating.low.toFixed(1)}–{b.rating.high.toFixed(1)} · {b.rating.confidence} confidence
+                {b.average_rating !== null && ` · plain average ${b.average_rating.toFixed(1)}`}
+              </dd>
+            )}
           </div>
           <div className="card p-4">
             <dt className="text-sm text-ink-soft">HOMIE reviews</dt>

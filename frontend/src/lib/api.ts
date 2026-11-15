@@ -154,7 +154,21 @@ export type Feedback = {
   author_verified: boolean
   created_at: string
 }
-export type FeedbackSummary = { count: number; average_rating: number | null; top_tags: string[] }
+/** HOMIE score from the rating engine (docs/rating-model.html). low-high is the likely range. */
+export type RatingSummary = {
+  score: number
+  low: number
+  high: number
+  rank_key: number
+  confidence: 'low' | 'medium' | 'high'
+  rated_reviews: number
+}
+export type FeedbackSummary = {
+  count: number
+  average_rating: number | null
+  rating: RatingSummary | null
+  top_tags: string[]
+}
 
 export type SeekerCriteria = {
   budget_max: number
@@ -365,6 +379,7 @@ export type Building = {
   review_count: number
   verified_count: number
   average_rating: number | null
+  rating: RatingSummary | null
   listing_count: number
 }
 export type BuildingDetail = Building & {

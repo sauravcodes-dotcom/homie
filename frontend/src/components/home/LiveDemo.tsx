@@ -10,7 +10,9 @@ import { scrollPageTo } from '@/components/SmoothScroll'
      up as a filter, a line sweeps while it "generates", then the ranked ledger builds in.
   2. After the clip, scroll drives the walkthrough: matches (drag the budget and everything
      re-ranks), the top building's evidence, a roommate comparison, then a real search box.
-  Scrolling past the clip's hold zone finishes the clip instead of trapping the page.
+  Scrolling down into the section holds the page at the stage until the clip has played, however
+  hard the scroll ("Skip intro" or Escape release it early). Landing past the section without
+  scrolling through it (reload, link) shows the end state instead of pulling the page back.
 */
 
 type Place = { name: string; rent: number; beds: number; walk: number; quiet: number; avail: string }
@@ -64,7 +66,9 @@ const TABS = [
 
 // Scroll ranges per pane once the clip is done. The describe pane only exists inside the clip.
 const RANGES: ([number, number] | null)[] = [null, [-1, 0.42], [0.42, 0.63], [0.63, 0.85], [0.85, 1.01]]
-const HOLD = 0.12 // scrolling past this while the clip plays finishes the clip
+const HOLD = 0.12 // landing beyond this without scrolling through the section skips the clip
+// Keys that scroll the page down; blocked while the page is held at the clip.
+const DOWN_KEYS = new Set([' ', 'PageDown', 'ArrowDown', 'End'])
 
 const usd = (n: number) => '$' + n.toLocaleString('en-US')
 const clamp = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v))
@@ -274,10 +278,34 @@ export function LiveDemo() {
       }
       raf = requestAnimationFrame(step)
     }
+    /* ---------- Holding the page while the clip plays ---------- */
+    // The stage is sticky, so a page held at the section's top looks exactly like a docked stage.
+    const playing = () => started && !done
+    const held = () => playing() && el.getBoundingClientRect().top <= 1
+    const holdTop = () => window.scrollY + el.getBoundingClientRect().top
+
     const onKey = (e: KeyboardEvent) => {
-      if (started && !done && e.key === 'Escape') finish()
+      if (playing() && e.key === 'Escape') finish()
+      const t = e.target as HTMLElement | null
+      if (held() && DOWN_KEYS.has(e.key) && !t?.closest?.('input, textarea, select, button, [contenteditable]')) {
+        e.preventDefault()
+      }
     }
     window.addEventListener('keydown', onKey)
+    // Capture phase, so the wheel never reaches Lenis while the page is held.
+    const onWheel = (e: WheelEvent) => {
+      if (held() && e.deltaY > 0) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+    let touchY = 0
+    const onTouchStart = (e: TouchEvent) => {
+      touchY = e.touches[0]?.clientY ?? 0
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      if (held() && (e.touches[0]?.clientY ?? touchY) < touchY) e.preventDefault()
+    }
 
     /* ---------- After the clip, scroll drives the walkthrough ---------- */
     function progress() {
@@ -332,14 +360,23 @@ export function LiveDemo() {
       if (cur !== target) requestAnimationFrame(tick)
       else ticking = false
     }
+    let seenAbove = false
     function onScroll() {
+      const top = el!.getBoundingClientRect().top
       const p = progress()
       target = clamp(p, -1, 1.01)
       if (!started) {
-        // Start the clip as the stage arrives; if someone jumps straight past it, show the end state.
-        if (p > HOLD) finish()
-        else if (el!.getBoundingClientRect().top < window.innerHeight * 0.3) play()
-      } else if (!done && p > HOLD) finish()
+        // Start the clip as the stage arrives. Arriving by scroll always plays it, even after a
+        // fling that jumps past in one frame; landing past it without scrolling through skips it.
+        if (top >= window.innerHeight * 0.3) seenAbove = true
+        else if (seenAbove || p <= HOLD) play()
+        else finish()
+      }
+      // Overshot while the clip plays (fling, scrollbar drag, keyboard): pull back to the stage.
+      if (playing() && top < -1) {
+        scrollPageTo(holdTop(), false)
+        cur = target = 0
+      }
       if (!ticking) {
         ticking = true
         requestAnimationFrame(tick)
@@ -390,6 +427,9 @@ export function LiveDemo() {
     } else {
       window.addEventListener('scroll', onScroll, { passive: true })
       window.addEventListener('resize', onResize)
+      window.addEventListener('wheel', onWheel, { capture: true, passive: false })
+      window.addEventListener('touchstart', onTouchStart, { passive: true })
+      window.addEventListener('touchmove', onTouchMove, { passive: false })
       onScroll()
     }
 
@@ -399,6 +439,9 @@ export function LiveDemo() {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onResize)
+      window.removeEventListener('wheel', onWheel, { capture: true })
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove', onTouchMove)
       tabs.forEach((t, i) => t.removeEventListener('click', tabHandlers[i]))
       replayBtn.removeEventListener('click', onReplay)
       skipBtn.removeEventListener('click', finish)

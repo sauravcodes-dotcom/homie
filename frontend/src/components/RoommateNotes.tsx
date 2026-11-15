@@ -22,13 +22,23 @@ export function RoommateNotes({ listing, onPosted }: { listing: ListingDetail; o
             From the student subleasing this room, who lives with them now.
           </p>
         </div>
-        {summary.average_rating !== null && (
-          <div className="text-right">
-            <div className="display text-5xl font-extrabold text-accent">{summary.average_rating}</div>
+        {summary.rating ? (
+          <div className="text-right" title="The subleaser wants the room taken, so HOMIE treats their stars as a hint and adjusts for it">
+            <div className="display text-5xl font-extrabold text-accent">{summary.rating.score.toFixed(1)}</div>
             <div className="text-xs text-ink-soft">
-              out of 5, {summary.count} {summary.count === 1 ? 'note' : 'notes'}
+              out of 5, adjusted · {summary.count} {summary.count === 1 ? 'note' : 'notes'}
+              {summary.average_rating !== null && ` averaging ${summary.average_rating}`}
             </div>
           </div>
+        ) : (
+          summary.average_rating !== null && (
+            <div className="text-right">
+              <div className="display text-5xl font-extrabold text-accent">{summary.average_rating}</div>
+              <div className="text-xs text-ink-soft">
+                out of 5, {summary.count} {summary.count === 1 ? 'note' : 'notes'}
+              </div>
+            </div>
+          )
         )}
       </div>
 

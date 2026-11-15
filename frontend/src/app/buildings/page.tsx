@@ -99,10 +99,11 @@ export default function Buildings() {
                   <h2 className="display text-3xl font-bold">{b.name}</h2>
                   <p className="mt-1.5 text-sm text-ink-soft">{[b.address, b.neighborhood].filter(Boolean).join(' · ')}</p>
                   <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 pt-5 text-sm">
-                    {b.average_rating !== null ? (
-                      <span className="flex items-center gap-2">
-                        <Stars value={b.average_rating} />
-                        <span className="font-bold">{b.average_rating.toFixed(1)}</span>
+                    {b.rating ? (
+                      <span className="flex items-center gap-2" title={`Likely ${b.rating.low.toFixed(1)}–${b.rating.high.toFixed(1)}, ${b.rating.confidence} confidence`}>
+                        <Stars value={b.rating.score} />
+                        <span className="font-bold">{b.rating.score.toFixed(1)}</span>
+                        <span className="text-xs text-ink-soft">({b.rating.low.toFixed(1)}–{b.rating.high.toFixed(1)})</span>
                       </span>
                     ) : (
                       <span className="text-ink-soft">No ratings yet</span>

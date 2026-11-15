@@ -45,6 +45,7 @@ from app.services.apartment_intelligence.answers import (
 )
 from app.services.embeddings import EmbeddingProvider, get_embedding_provider
 from app.services.llm import LLMProvider, get_llm_provider
+from app.services.rating import apartment_ratings
 from app.services.reviews.external import (
     POOL_MULTIPLIER,
     ExternalReviewProvider,
@@ -108,6 +109,7 @@ def _cards(db: Session, rows: list[Apartment]) -> list[ApartmentCard]:
             .group_by(Listing.apartment_id)
         ).all()
     )
+    ratings = apartment_ratings(db, ids, datetime.now(UTC).date())
     return [
         ApartmentCard(
             id=r.id,
@@ -121,6 +123,7 @@ def _cards(db: Session, rows: list[Apartment]) -> list[ApartmentCard]:
             average_rating=(
                 round(float(stats[r.id][2]), 2) if r.id in stats and stats[r.id][2] else None
             ),
+            rating=ratings.get(r.id),
             listing_count=listings.get(r.id, 0),
         )
         for r in rows

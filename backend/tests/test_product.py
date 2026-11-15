@@ -312,6 +312,7 @@ def test_building_reviews_insights_and_ask(login):
     )
     empty = users[0].get(f"/api/apartments/{apt['id']}").json()
     assert empty["insights_source"] == "none" and empty["external"]["status"] == "disabled"
+    assert empty["rating"] is None
 
     for i, u in enumerate(users):
         body = BAD if i < 3 else GOOD
@@ -331,6 +332,12 @@ def test_building_reviews_insights_and_ask(login):
 
     d = users[0].get(f"/api/apartments/{apt['id']}").json()
     assert d["insights_source"] == "homie" and d["review_count"] == 5 and d["average_rating"] == 3.2
+    # HOMIE score: same reviews, pulled toward the campus average, with a range.
+    r = d["rating"]
+    assert r["rated_reviews"] == 5 and r["low"] < r["score"] < r["high"]
+    assert r["rank_key"] <= r["score"]
+    listed = users[0].get("/api/apartments").json()
+    assert next(a for a in listed if a["id"] == apt["id"])["rating"] == r
     assert set(d["insights"]["recurring_issues"]) == {"maintenance", "pests"}
     assert d["insights"]["median_reported_monthly_cost"] == 1450
     assert "5 HOMIE reviews" in d["summary"] and d["my_review_id"] is not None

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 from app.models.listing import ListingType
 from app.schemas.auth import PublicUser
 from app.schemas.matching import Lifestyle, MatchResult
+from app.schemas.rating import RatingSummary
 
 PhotoUrl = str
 
@@ -40,6 +41,9 @@ class FeedbackOut(BaseModel):
 class FeedbackSummary(BaseModel):
     count: int = 0
     average_rating: float | None = None
+    # The subleaser wants the room taken, so their stars are read as a hint:
+    # the engine assumes they run high and are noisy (docs/rating-model.html).
+    rating: RatingSummary | None = None
     top_tags: list[str] = Field(default_factory=list)
 
 

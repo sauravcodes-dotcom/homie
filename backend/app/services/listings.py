@@ -1,14 +1,18 @@
 """The subleaser's roommate feedback channel on a listing."""
 
 from collections import Counter, defaultdict
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import ForbiddenError, NotFoundError
 from app.models import Listing, RoommateFeedback, User
+from app.models.base import as_utc
 from app.schemas.listing import FeedbackCreate, FeedbackOut, FeedbackSummary
 from app.services.people import display_name
+from app.services.rating.apartments import summarize
+from app.services.rating.engine import Rating, estimate
 
 __all__ = [
     "ForbiddenError",
@@ -59,11 +63,21 @@ def feedback_summaries(db: Session, listing_ids: list[int]) -> dict[int, Feedbac
     ).all():
         grouped[row.listing_id].append(row)
     out = {}
+    today = datetime.now(UTC).date()
     for listing_id, rows in grouped.items():
         tags = Counter(t for r in rows for t in (r.tags or []))
+        ratings = [
+            Rating(
+                stars=r.rating,
+                source="subleaser",
+                age_days=max(0, (today - as_utc(r.created_at).date()).days),
+            )
+            for r in rows
+        ]
         out[listing_id] = FeedbackSummary(
             count=len(rows),
             average_rating=round(sum(r.rating for r in rows) / len(rows), 1),
+            rating=summarize(estimate(ratings)),
             top_tags=[t for t, _ in tags.most_common(3)],
         )
     return out

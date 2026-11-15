@@ -37,11 +37,15 @@ def test_subleaser_can_post_roommate_feedback(client):
     assert resp.json()["tags"] == ["clean", "quiet"]
 
     detail = client.get(f"/api/listings/{listing['id']}").json()
-    assert detail["roommate_feedback"] == {
+    summary = detail["roommate_feedback"]
+    rating = summary.pop("rating")
+    assert summary == {
         "count": 1,
         "average_rating": 4.0,
         "top_tags": ["clean", "quiet"],
     }
+    # The subleaser's own stars are read as a hint: discounted, low confidence.
+    assert rating["score"] < 4.0 and rating["confidence"] == "low"
 
 
 def test_only_the_subleaser_can_post_feedback(client):
