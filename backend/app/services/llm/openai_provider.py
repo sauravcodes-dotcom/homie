@@ -5,6 +5,7 @@ gateways, local servers such as vLLM or Ollama) works by changing the base URL.
 """
 
 import logging
+import time
 
 import httpx
 
@@ -39,7 +40,12 @@ class OpenAIProvider(LLMProvider):
         )
 
     def complete(
-        self, messages: list[Message], *, temperature: float = 0.2, json_mode: bool = False
+        self,
+        messages: list[Message],
+        *,
+        temperature: float = 0.2,
+        json_mode: bool = False,
+        max_tokens: int | None = None,
     ) -> str:
         payload: dict = {
             "model": self._model,
@@ -48,9 +54,19 @@ class OpenAIProvider(LLMProvider):
         }
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
+        if max_tokens:
+            # Also keeps rate-limited free tiers happy: some providers count the
+            # requested output size against tokens-per-minute.
+            payload["max_tokens"] = max_tokens
         payload.update(self._extra_body)
         try:
             resp = self._client.post("/chat/completions", json=payload)
+            if resp.status_code == 429:
+                wait = _retry_after_seconds(resp)
+                if wait is not None and wait <= 4:
+                    logger.info("%s rate limited; retrying in %.1fs", self.name, wait)
+                    time.sleep(wait)
+                    resp = self._client.post("/chat/completions", json=payload)
             resp.raise_for_status()
             return resp.json()["choices"][0]["message"]["content"] or ""
         except httpx.HTTPStatusError as exc:
@@ -63,3 +79,13 @@ class OpenAIProvider(LLMProvider):
             ) from exc
         except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
             raise AIProviderError("LLM request failed") from exc
+
+
+def _retry_after_seconds(resp: httpx.Response) -> float | None:
+    raw = resp.headers.get("retry-after")
+    if raw is None:
+        return None
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        return None

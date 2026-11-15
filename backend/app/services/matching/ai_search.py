@@ -46,7 +46,7 @@ FEATURE_WORDS = {
     "fast internet": ("fiber", "internet"),
     "bike storage": ("bike storage",),
 }
-CANDIDATES_FOR_LLM = 15
+CANDIDATES_FOR_LLM = 10
 
 
 class UnderstoodPreferences(BaseModel):
@@ -204,6 +204,7 @@ def _llm_understand(query: str, llm: LLMProvider, today: date) -> UnderstoodPref
     return llm.complete_structured(
         [Message("system", system), Message("user", f"Request:\n<<<\n{query}\n>>>")],
         UnderstoodPreferences,
+        max_tokens=1200,
     )
 
 
@@ -371,20 +372,18 @@ def _llm_rerank(db, query, understood, top, apartments, llm, limit) -> list[Pick
 
     compact = []
     for _score, match, hits, listing in candidates:
-        apt = apartments.get(listing.apartment_id)
         compact.append(
             {
                 "listing_id": listing.id,
                 "title": listing.title,
-                "address": apt.address if apt else None,
                 "area": listing.neighborhood,
                 "rent": listing.monthly_rent,
                 "available": f"{listing.available_from} to {listing.available_to or 'open-ended'}",
-                "description": listing.description[:500],
-                "household": listing.lifestyle,
-                "roommate_notes": notes.get(listing.id, [])[:2],
+                "description": listing.description[:220],
+                "household": {k: v for k, v in (listing.lifestyle or {}).items() if v is not None},
+                "roommate_notes": [n[:120] for n in notes.get(listing.id, [])[:1]],
                 "fit_score": match.score,
-                "scorer_reasons": match.highlights[:3] + match.concerns[:2],
+                "concerns": match.concerns[:2],
                 "has_must_haves": hits,
             }
         )
@@ -406,9 +405,13 @@ def _llm_rerank(db, query, understood, top, apartments, llm, limit) -> list[Pick
             "candidates": compact,
         },
         default=str,
+        separators=(",", ":"),
     )
     result = llm.complete_structured(
-        [Message("system", system), Message("user", user)], Rerank, temperature=0.2
+        [Message("system", system), Message("user", user)],
+        Rerank,
+        temperature=0.2,
+        max_tokens=1500,
     )
     return result.picks
 

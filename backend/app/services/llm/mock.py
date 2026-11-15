@@ -21,7 +21,12 @@ class MockLLMProvider(LLMProvider):
         self.offline = responder is None
 
     def complete(
-        self, messages: list[Message], *, temperature: float = 0.2, json_mode: bool = False
+        self,
+        messages: list[Message],
+        *,
+        temperature: float = 0.2,
+        json_mode: bool = False,
+        max_tokens: int | None = None,
     ) -> str:
         if self._responder is not None:
             return self._responder(messages)

@@ -31,12 +31,22 @@ class LLMProvider(ABC):
 
     @abstractmethod
     def complete(
-        self, messages: list[Message], *, temperature: float = 0.2, json_mode: bool = False
+        self,
+        messages: list[Message],
+        *,
+        temperature: float = 0.2,
+        json_mode: bool = False,
+        max_tokens: int | None = None,
     ) -> str:
         """Return the model's text response."""
 
     def complete_structured(
-        self, messages: list[Message], schema: type[T], *, temperature: float = 0.0
+        self,
+        messages: list[Message],
+        schema: type[T],
+        *,
+        temperature: float = 0.0,
+        max_tokens: int | None = None,
     ) -> T:
         """Ask for JSON matching `schema` and validate it.
 
@@ -50,7 +60,12 @@ class LLMProvider(ABC):
                 f"against this JSON Schema:\n{json.dumps(schema.model_json_schema())}"
             ),
         )
-        raw = self.complete([instruction, *messages], temperature=temperature, json_mode=True)
+        raw = self.complete(
+            [instruction, *messages],
+            temperature=temperature,
+            json_mode=True,
+            max_tokens=max_tokens,
+        )
         try:
             return schema.model_validate_json(_strip_code_fence(raw))
         except ValidationError as exc:
