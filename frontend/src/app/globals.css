@@ -79,10 +79,8 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
-  }
-  /* Lenis drives scrolling itself; native smooth scrolling would fight it. */
-  html.lenis {
-    scroll-behavior: auto;
+    /* Keeps anchor targets clear of the sticky nav. */
+    scroll-padding-top: 88px;
   }
   body {
     min-height: 100dvh;
