@@ -24,6 +24,9 @@ class Message:
 
 class LLMProvider(ABC):
     name: str = "base"
+    # True when no real model is behind this provider. Services then use their
+    # deterministic offline path instead of asking for generated text.
+    offline: bool = False
 
     @abstractmethod
     def complete(

@@ -17,6 +17,8 @@ class MockLLMProvider(LLMProvider):
 
     def __init__(self, responder: Responder | None = None):
         self._responder = responder
+        # A scripted mock behaves like a real model; an unscripted one is "offline".
+        self.offline = responder is None
 
     def complete(
         self, messages: list[Message], *, temperature: float = 0.2, json_mode: bool = False

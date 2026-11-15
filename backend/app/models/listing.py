@@ -3,7 +3,7 @@
 import enum
 from datetime import date
 
-from sqlalchemy import Date, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.session import Base
@@ -33,11 +33,16 @@ class Listing(TimestampMixin, Base):
     monthly_rent: Mapped[int] = mapped_column(Integer)  # whole USD
     available_from: Mapped[date] = mapped_column(Date)
     available_to: Mapped[date | None] = mapped_column(Date)
-    neighborhood: Mapped[str | None] = mapped_column(String(120))
+    neighborhood: Mapped[str | None] = mapped_column(String(120), index=True)
     latitude: Mapped[float | None] = mapped_column(Float)
     longitude: Mapped[float | None] = mapped_column(Float)
     # e.g. {"sleep_schedule": "early", "cleanliness": 4, "smoking": false, "pets": true}
     lifestyle: Mapped[dict] = mapped_column(JSONType, default=dict)
+    # Public URLs of uploaded photos, in display order.
+    photos: Mapped[list] = mapped_column(JSONType, default=list)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    # Output of the scam / red-flag check (see schemas.listing.RiskReport).
+    risk: Mapped[dict | None] = mapped_column(JSONType)
     embedding: Mapped[list[float] | None] = mapped_column(EmbeddingType)
 
 
@@ -45,7 +50,9 @@ class SeekerProfile(TimestampMixin, Base):
     __tablename__ = "seeker_profiles"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True
+    )
     budget_min: Mapped[int | None] = mapped_column(Integer)
     budget_max: Mapped[int] = mapped_column(Integer)
     move_in: Mapped[date] = mapped_column(Date)
@@ -54,4 +61,6 @@ class SeekerProfile(TimestampMixin, Base):
     max_distance_miles: Mapped[float | None] = mapped_column(Float)
     lifestyle: Mapped[dict] = mapped_column(JSONType, default=dict)
     bio: Mapped[str] = mapped_column(Text, default="")
+    # Opt-in: show this profile to other signed-in students looking for roommates.
+    is_discoverable: Mapped[bool] = mapped_column(Boolean, default=False)
     embedding: Mapped[list[float] | None] = mapped_column(EmbeddingType)

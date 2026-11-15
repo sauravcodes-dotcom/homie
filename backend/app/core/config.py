@@ -38,7 +38,26 @@ class Settings(BaseSettings):
     auth_demo_mode: bool = True
 
     # Comma-separated list, e.g. "http://localhost:5173,https://homie.app"
-    cors_origins: str = "http://localhost:5173"
+    cors_origins: str = "http://localhost:3000,http://localhost:5173"
+
+    # Comma-separated emails allowed to review residency documents.
+    admin_emails: str = ""
+
+    # Uploads (listing photos, private residency documents). Local disk; serverless
+    # hosts only have /tmp, so production needs object storage for these to persist.
+    upload_dir: str | None = None
+    max_upload_mb: int = 8
+
+    # Buildings with fewer HOMIE reviews than this show a summary of public reviews.
+    min_reviews_for_insights: int = 5
+    # "places": official Google Places API (returns at most 5 reviews per place).
+    # "serpapi": SerpApi's Google Maps reviews endpoint (paginates, so a 100-review
+    # random sample is possible). "none" disables the fallback.
+    external_reviews_provider: Literal["none", "places", "serpapi"] = "none"
+    external_reviews_sample_size: int = 100
+    external_reviews_refresh_days: int = 30
+    google_places_api_key: SecretStr | None = None
+    serpapi_api_key: SecretStr | None = None
 
     # AI providers. "mock" needs no API key and is deterministic, which keeps
     # local development, tests and CI free of external calls.
@@ -72,6 +91,20 @@ class Settings(BaseSettings):
     @property
     def email_delivery_enabled(self) -> bool:
         return self.resend_api_key is not None
+
+    @property
+    def upload_root(self) -> str:
+        if self.upload_dir:
+            return self.upload_dir
+        return "/tmp/homie-uploads" if self.vercel else "uploads"
+
+    @property
+    def admin_email_set(self) -> set[str]:
+        return {e.strip().lower() for e in self.admin_emails.split(",") if e.strip()}
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
 
     @property
     def cors_origin_list(self) -> list[str]:

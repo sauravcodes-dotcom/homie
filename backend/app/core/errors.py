@@ -24,6 +24,26 @@ class NotFoundError(HomieError):
     code = "not_found"
 
 
+class UnauthorizedError(HomieError):
+    status_code = 401
+    code = "unauthorized"
+
+
+class ForbiddenError(HomieError):
+    status_code = 403
+    code = "forbidden"
+
+
+class ConflictError(HomieError):
+    status_code = 409
+    code = "conflict"
+
+
+class RateLimitError(HomieError):
+    status_code = 429
+    code = "rate_limited"
+
+
 class AIProviderError(HomieError):
     """An upstream LLM / embedding provider failed or returned unusable output."""
 

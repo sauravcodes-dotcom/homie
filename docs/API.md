@@ -146,3 +146,33 @@ Aggregates extracted reviews. Deterministic, no LLM.
 ```
 
 Response (`ApartmentInsights`) always includes `sample_size`, `verified_count`, `unverified_count`, `period_start`, `period_end`, per-category counts with sample evidence, `recurring_issues` and `median_reported_monthly_cost`.
+
+## Product endpoints
+
+All of these need `Authorization: Bearer <token>` unless marked public.
+
+| Method and path | Purpose |
+| --- | --- |
+| `PATCH /api/auth/me` | Set the display name. |
+| `GET /api/listings` (public) | Browse. Filters: `q`, `listing_type`, `min_rent`, `max_rent`, `neighborhood`, `move_in_by`, `apartment_id`, `sort`. |
+| `PUT /api/listings/{id}`, `DELETE /api/listings/{id}` | Edit or delete your own listing. |
+| `POST /api/uploads/photo` | Upload a listing photo (JPEG, PNG, WebP). |
+| `POST /api/ai/listing-draft` | Rough notes to title and description. |
+| `POST /api/ai/risk-check` (public) | Preview the red-flag check for a draft. |
+| `GET /api/benchmark` (public) | Rent vs comparable listings, with sample size. |
+| `GET /api/map/listings` (public) | Listings with coordinates and travel estimates. |
+| `GET/PUT /api/profile` | Lifestyle quiz answers. |
+| `GET /api/feed` | Listings ranked for the signed-in seeker. |
+| `GET /api/roommates` | Opt-in roommate profiles, ranked. |
+| `POST /api/swipes`, `DELETE /api/swipes/{type}/{id}`, `GET /api/saved`, `GET /api/saved/roommates` | Save or pass. |
+| `GET/POST /api/conversations`, `GET /api/conversations/{id}`, `POST /api/conversations/{id}/messages` | Messaging. |
+| `GET /api/people/{id}` (public), `PUT/DELETE /api/people/{id}/review` | Person reviews. |
+| `GET/POST /api/apartments`, `GET /api/apartments/{id}` (GETs public) | Buildings and their insights. |
+| `GET/POST /api/apartments/{id}/reviews` | Building reviews. |
+| `POST /api/apartments/{id}/ask` (public) | Question answered from reviews, with citations. |
+| `POST /api/apartments/{id}/external-summary` (public) | Build the public-review summary when HOMIE reviews are too few. |
+| `POST /api/apartments/{id}/verification` | Upload a lease page for the verified-resident badge. |
+| `GET /api/admin/verifications`, `POST /api/admin/verifications/{id}/decision` | Admin review (emails in `ADMIN_EMAILS`). |
+
+Interactive docs with full schemas are at `/docs` on the running API.
+

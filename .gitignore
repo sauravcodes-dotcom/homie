@@ -25,3 +25,11 @@ dist/
 .vscode/*
 !.vscode/extensions.json
 *.log
+
+# Local dev data
+backend/homie-dev.db
+backend/uploads/
+
+# Next.js
+.next/
+next-env.d.ts

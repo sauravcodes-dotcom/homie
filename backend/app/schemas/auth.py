@@ -22,6 +22,21 @@ class UserOut(BaseModel):
     email: str
     full_name: str
     is_usc_verified: bool
+    is_admin: bool = False
+    # True once the lifestyle quiz has been completed.
+    has_profile: bool = False
+
+
+class PublicUser(BaseModel):
+    """What other students see. Never includes the email address."""
+
+    id: int
+    display_name: str
+    is_usc_verified: bool
+
+
+class UserUpdate(BaseModel):
+    full_name: str = Field(min_length=1, max_length=200)
 
 
 class SessionOut(BaseModel):

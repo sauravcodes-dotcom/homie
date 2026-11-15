@@ -1,6 +1,7 @@
 """Turn a free-text resident review into a validated ReviewExtraction."""
 
 from app.schemas.review import ReviewCategory, ReviewExtraction
+from app.services.apartment_intelligence.offline import extract_offline
 from app.services.llm import LLMProvider, Message
 
 MAX_REVIEW_CHARS = 6000
@@ -19,6 +20,8 @@ def extract_review(text: str, llm: LLMProvider) -> ReviewExtraction:
     body = text.strip()[:MAX_REVIEW_CHARS]
     if not body:
         return ReviewExtraction()
+    if llm.offline:
+        return extract_offline(body)
     return llm.complete_structured(
         [
             Message(role="system", content=SYSTEM_PROMPT),

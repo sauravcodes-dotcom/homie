@@ -1,72 +1,21 @@
-"""Listings and the subleaser's roommate feedback channel."""
+"""The subleaser's roommate feedback channel on a listing."""
 
-from collections import Counter
+from collections import Counter, defaultdict
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import HomieError, NotFoundError
-from app.models import Apartment, Listing, ListingType, RoommateFeedback, User
-from app.schemas.listing import (
-    FeedbackCreate,
-    FeedbackOut,
-    FeedbackSummary,
-    ListingCreate,
-    ListingDetail,
-    ListingOut,
-)
-from app.schemas.matching import Lifestyle
+from app.core.errors import ForbiddenError, NotFoundError
+from app.models import Listing, RoommateFeedback, User
+from app.schemas.listing import FeedbackCreate, FeedbackOut, FeedbackSummary
+from app.services.people import display_name
 
-
-class ForbiddenError(HomieError):
-    status_code = 403
-    code = "forbidden"
-
-
-def list_listings(db: Session) -> list[ListingOut]:
-    listings = db.scalars(select(Listing).order_by(Listing.created_at.desc())).all()
-    return [_to_out(db, listing) for listing in listings]
-
-
-def get_listing(db: Session, listing_id: int) -> ListingDetail:
-    listing = db.get(Listing, listing_id)
-    if listing is None:
-        raise NotFoundError("Listing not found")
-    feedback = _feedback_rows(db, listing.id)
-    return ListingDetail(
-        **_to_out(db, listing, feedback).model_dump(),
-        feedback=[_feedback_out(db, f) for f in feedback],
-    )
-
-
-def create_listing(db: Session, owner: User, data: ListingCreate) -> ListingDetail:
-    apartment = db.scalars(
-        select(Apartment).where(Apartment.name == data.building_name.strip())
-    ).first()
-    if apartment is None:
-        apartment = Apartment(
-            name=data.building_name.strip(),
-            address=data.address.strip(),
-            neighborhood=data.neighborhood,
-        )
-        db.add(apartment)
-        db.flush()
-    listing = Listing(
-        owner_id=owner.id,
-        apartment_id=apartment.id,
-        listing_type=ListingType(data.listing_type),
-        title=data.title.strip(),
-        description=data.description.strip(),
-        unit=data.unit,
-        monthly_rent=data.monthly_rent,
-        available_from=data.available_from,
-        available_to=data.available_to,
-        neighborhood=data.neighborhood,
-        lifestyle=data.lifestyle.model_dump(exclude_none=True),
-    )
-    db.add(listing)
-    db.commit()
-    return get_listing(db, listing.id)
+__all__ = [
+    "ForbiddenError",
+    "add_roommate_feedback",
+    "feedback_for_listing",
+    "feedback_summaries",
+]
 
 
 def add_roommate_feedback(
@@ -91,51 +40,33 @@ def add_roommate_feedback(
     return _feedback_out(db, row)
 
 
-def _feedback_rows(db: Session, listing_id: int) -> list[RoommateFeedback]:
-    return list(
-        db.scalars(
-            select(RoommateFeedback)
-            .where(RoommateFeedback.listing_id == listing_id)
-            .order_by(RoommateFeedback.created_at.desc(), RoommateFeedback.id.desc())
+def feedback_for_listing(db: Session, listing_id: int) -> list[FeedbackOut]:
+    rows = db.scalars(
+        select(RoommateFeedback)
+        .where(RoommateFeedback.listing_id == listing_id)
+        .order_by(RoommateFeedback.created_at.desc(), RoommateFeedback.id.desc())
+    ).all()
+    return [_feedback_out(db, r) for r in rows]
+
+
+def feedback_summaries(db: Session, listing_ids: list[int]) -> dict[int, FeedbackSummary]:
+    """Count, average rating and most common tags per listing, in one query."""
+    if not listing_ids:
+        return {}
+    grouped: dict[int, list[RoommateFeedback]] = defaultdict(list)
+    for row in db.scalars(
+        select(RoommateFeedback).where(RoommateFeedback.listing_id.in_(listing_ids))
+    ).all():
+        grouped[row.listing_id].append(row)
+    out = {}
+    for listing_id, rows in grouped.items():
+        tags = Counter(t for r in rows for t in (r.tags or []))
+        out[listing_id] = FeedbackSummary(
+            count=len(rows),
+            average_rating=round(sum(r.rating for r in rows) / len(rows), 1),
+            top_tags=[t for t, _ in tags.most_common(3)],
         )
-    )
-
-
-def _summary(rows: list[RoommateFeedback]) -> FeedbackSummary:
-    if not rows:
-        return FeedbackSummary(count=0, average_rating=None, top_tags=[])
-    tags = Counter(t for r in rows for t in r.tags)
-    return FeedbackSummary(
-        count=len(rows),
-        average_rating=round(sum(r.rating for r in rows) / len(rows), 1),
-        top_tags=[t for t, _ in tags.most_common(3)],
-    )
-
-
-def _to_out(
-    db: Session, listing: Listing, feedback: list[RoommateFeedback] | None = None
-) -> ListingOut:
-    apartment = db.get(Apartment, listing.apartment_id) if listing.apartment_id else None
-    owner = db.get(User, listing.owner_id)
-    rows = feedback if feedback is not None else _feedback_rows(db, listing.id)
-    return ListingOut(
-        id=listing.id,
-        listing_type=listing.listing_type.value,
-        title=listing.title,
-        description=listing.description,
-        building_name=apartment.name if apartment else None,
-        address=apartment.address if apartment else None,
-        unit=listing.unit,
-        neighborhood=listing.neighborhood,
-        monthly_rent=listing.monthly_rent,
-        available_from=listing.available_from,
-        available_to=listing.available_to,
-        lifestyle=Lifestyle(**(listing.lifestyle or {})),
-        owner_name=owner.full_name if owner else "Unknown",
-        owner_id=listing.owner_id,
-        is_demo=listing.is_demo,
-        roommate_feedback=_summary(rows),
-    )
+    return out
 
 
 def _feedback_out(db: Session, row: RoommateFeedback) -> FeedbackOut:
@@ -145,7 +76,7 @@ def _feedback_out(db: Session, row: RoommateFeedback) -> FeedbackOut:
         rating=row.rating,
         tags=row.tags or [],
         comment=row.comment,
-        author_name=author.full_name if author else "Former resident",
+        author_name=display_name(author),
         author_verified=bool(author and author.is_usc_verified),
         created_at=row.created_at,
     )

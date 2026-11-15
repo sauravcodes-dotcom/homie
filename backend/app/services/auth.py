@@ -17,7 +17,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.core.errors import HomieError
+from app.core.errors import HomieError, UnauthorizedError
 from app.models import LoginCode, User, UserSession
 
 logger = logging.getLogger("homie")
@@ -25,9 +25,8 @@ logger = logging.getLogger("homie")
 _EMAIL = re.compile(r"^[a-z0-9._%+\-]+@([a-z0-9.\-]+)$")
 
 
-class AuthError(HomieError):
-    status_code = 401
-    code = "unauthorized"
+class AuthError(UnauthorizedError):
+    """Kept as its own name for callers; same 401 as UnauthorizedError."""
 
 
 class EmailDomainError(HomieError):

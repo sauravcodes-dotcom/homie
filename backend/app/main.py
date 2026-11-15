@@ -4,10 +4,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
+from app.services import storage
 
 logger = logging.getLogger("homie")
 
@@ -52,6 +54,8 @@ def create_app() -> FastAPI:
     )
     register_exception_handlers(app)
     app.include_router(api_router)
+    # Listing photos are public. Residency documents live elsewhere and are not served here.
+    app.mount("/api/uploads/photos", StaticFiles(directory=storage.photos_dir()), name="photos")
     return app
 
 

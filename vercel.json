@@ -7,7 +7,7 @@
     },
     "frontend": {
       "root": "frontend",
-      "framework": "vite"
+      "framework": "nextjs"
     }
   },
   "rewrites": [

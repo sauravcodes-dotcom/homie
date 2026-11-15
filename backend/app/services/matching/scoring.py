@@ -223,3 +223,83 @@ def _haversine_miles(lat1: float, lng1: float, lat2: float, lng2: float) -> floa
 
 def _qualify(sim: float) -> str:
     return "highly" if sim >= 0.75 else "moderately" if sim >= 0.5 else "not very"
+
+
+def score_roommates(
+    me: SeekerCriteria,
+    other: SeekerCriteria,
+    *,
+    other_id: int | None = None,
+    semantic_similarity: float | None = None,
+) -> MatchResult:
+    """Compatibility between two seekers who might share a place."""
+    factors: list[FactorScore] = []
+
+    lo, hi = sorted((me.budget_max, other.budget_max))
+    budget = lo / hi
+    factors.append(
+        FactorScore(
+            factor="budget",
+            score=round(budget, 3),
+            weight=WEIGHTS["budget"],
+            reason=(
+                "Budgets are close" if budget >= 0.85 else f"Budgets differ (${lo:,} vs ${hi:,})"
+            ),
+        )
+    )
+
+    gap = abs((me.move_in - other.move_in).days)
+    dates = max(0.0, 1 - gap / 90)
+    factors.append(
+        FactorScore(
+            factor="dates",
+            score=round(dates, 3),
+            weight=WEIGHTS["dates"],
+            reason=(
+                "Move-in dates line up" if gap <= 14 else f"Move-in dates are {gap} days apart"
+            ),
+        )
+    )
+
+    mine = {n.strip().lower() for n in me.preferred_neighborhoods}
+    theirs = {n.strip().lower() for n in other.preferred_neighborhoods}
+    if mine and theirs:
+        shared = mine & theirs
+        factors.append(
+            FactorScore(
+                factor="location",
+                score=1.0 if shared else 0.3,
+                weight=WEIGHTS["location"],
+                reason=(
+                    f"Both want {', '.join(sorted(shared)).title()}"
+                    if shared
+                    else "No preferred areas in common"
+                ),
+            )
+        )
+
+    lifestyle = _lifestyle(me.lifestyle, other.lifestyle)
+    if lifestyle:
+        # Day-to-day habits matter most between people sharing a home.
+        factors.append(lifestyle.model_copy(update={"weight": 0.40}))
+    if semantic_similarity is not None:
+        sim = max(0.0, min(1.0, semantic_similarity))
+        factors.append(
+            FactorScore(
+                factor="semantic",
+                score=round(sim, 3),
+                weight=WEIGHTS["semantic"],
+                reason=f"Your bios are {_qualify(sim)} similar",
+            )
+        )
+
+    total = sum(f.weight for f in factors)
+    overall = sum(f.score * f.weight for f in factors) / total
+    ranked = sorted(factors, key=lambda f: f.score, reverse=True)
+    return MatchResult(
+        listing_id=other_id,
+        score=round(overall * 100),
+        factors=factors,
+        highlights=[f.reason for f in ranked if f.score >= 0.75],
+        concerns=[f.reason for f in reversed(ranked) if f.score < 0.5],
+    )

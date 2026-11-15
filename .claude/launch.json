@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "homie-api",
+      "runtimeExecutable": "/bin/zsh",
+      "runtimeArgs": ["-c", "cd backend && DATABASE_URL=sqlite:///./homie-dev.db ADMIN_EMAILS=admin@usc.edu .venv/bin/uvicorn app.main:app --port 8000"],
+      "port": 8000
+    },
+    {
+      "name": "homie-web",
+      "runtimeExecutable": "/bin/zsh",
+      "runtimeArgs": ["-c", "cd frontend && PATH=$HOME/.nvm/versions/node/v24.22.1/bin:$PATH npm run dev"],
+      "port": 3000
+    }
+  ]
+}

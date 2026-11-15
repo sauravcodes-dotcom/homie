@@ -11,7 +11,7 @@ HOMIE is an AI-powered student housing network, starting with USC. It connects s
 
 ## Stack
 
-- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4
+- **Frontend:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Motion, three.js, Leaflet
 - **Backend:** Python 3.11+, FastAPI, Pydantic v2, pydantic-settings
 - **Database:** PostgreSQL 16, SQLAlchemy 2, pgvector
 - **AI:** provider-agnostic LLM and embedding layers (offline mock/hashing providers by default, any OpenAI-compatible API when configured)
@@ -20,7 +20,7 @@ HOMIE is an AI-powered student housing network, starting with USC. It connects s
 
 ```
 homie/
-├── frontend/                 React + Vite landing page and future web app
+├── frontend/                 Next.js web app (USC cardinal and gold theme)
 ├── backend/
 │   ├── app/
 │   │   ├── api/              HTTP routes (thin: validate, call service, return)
@@ -68,7 +68,7 @@ python -m app.database.init_db   # creates the vector extension and tables
 uvicorn app.main:app --reload
 ```
 
-**3. Frontend** (http://localhost:5173)
+**3. Frontend** (http://localhost:3000, needs Node 22 or newer)
 
 ```bash
 cd frontend
@@ -76,19 +76,31 @@ npm install
 npm run dev
 ```
 
-The Vite dev server proxies `/api` to the backend, so the landing page's live match card and API status indicator work with no CORS setup.
+The Next.js dev server forwards `/api` to the backend, so there is no CORS setup.
 
-### Using a real model
+**No Docker?** Run the backend on SQLite instead, and optionally load fictional sample data:
 
-Set these in `.env` and restart the API:
-
+```bash
+cd backend
+export DATABASE_URL=sqlite:///./homie-dev.db
+python -m app.database.sample_data     # optional: sample buildings, listings and reviews
+uvicorn app.main:app --reload
 ```
-LLM_PROVIDER=openai
-EMBEDDING_PROVIDER=openai
-OPENAI_API_KEY=sk-...
-```
 
-`OPENAI_BASE_URL` can point at any OpenAI-compatible server (vLLM, Ollama, a gateway). Keep `EMBEDDING_DIMENSIONS` in sync with the vector columns; changing it means recreating them.
+## What is in the app
+
+| Area | What it does |
+| --- | --- |
+| Sign-in | 6-digit code sent to a `@usc.edu` address. Without an email key the code is shown on screen (demo mode). |
+| Lifestyle quiz | Budget, dates, neighborhoods, sleep, cleanliness, smoking, drinking, diet, pets, bio. |
+| Discover | Swipe deck of ranked listings and (opt-in) roommates. Right saves, left passes. |
+| Listings | Post, browse and filter. Photos, map pin, AI listing writer, red-flag check, rent benchmark. |
+| Roommate notes | The student subleasing a room describes the roommates on the listing. |
+| Messages | In-app conversations with listers and saved roommates. |
+| Person reviews | Rate someone as a roommate, subletter or lister once you have both messaged each other. |
+| Buildings | Resident reviews, recurring-problem detection, ask-a-building with cited quotes, verified-resident badge. |
+| Public-review fallback | Buildings with fewer than 5 HOMIE reviews show a labelled summary of a random sample of public Google reviews (needs `EXTERNAL_REVIEWS_PROVIDER`). |
+| Map | Listings with estimated walk and bike time to campus. |
 
 ## Checks
 

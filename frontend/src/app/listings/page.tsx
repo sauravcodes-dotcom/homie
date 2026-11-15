@@ -1,0 +1,127 @@
+'use client'
+
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useDeferredValue, useState } from 'react'
+import { Empty, ErrorNote, PageHeader } from '@/components/Bits'
+import { ListingCard } from '@/components/ListingCard'
+import { Reveal } from '@/components/Reveal'
+import { query, type Listing, type ListingType } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
+import { TYPE_LABEL, usd } from '@/lib/format'
+import { useApi } from '@/lib/hooks'
+
+const TYPES = Object.keys(TYPE_LABEL) as ListingType[]
+
+function Browse() {
+  const { user } = useAuth()
+  const building = useSearchParams().get('building')
+  const [q, setQ] = useState('')
+  const [type, setType] = useState<ListingType | ''>('')
+  const [maxRent, setMaxRent] = useState(3500)
+  const [neighborhood, setNeighborhood] = useState('')
+  const [moveInBy, setMoveInBy] = useState('')
+  const [sort, setSort] = useState('newest')
+
+  const params = useDeferredValue(
+    query({
+      q,
+      listing_type: type,
+      max_rent: maxRent < 3500 ? maxRent : null,
+      neighborhood,
+      move_in_by: moveInBy,
+      apartment_id: building,
+      sort,
+      limit: 60,
+    }),
+  )
+  const { data, error, loading } = useApi<Listing[]>(`/listings${params}`)
+  const hoods = useApi<string[]>('/listings/neighborhoods')
+
+  return (
+    <>
+      <PageHeader eyebrow="Open now" title="Listings">
+        Subleases, lease takeovers, rooms and roommate openings posted by USC students.
+        {user?.has_profile && (
+          <>
+            {' '}
+            <Link href="/matches" className="font-bold text-accent">See them ranked for you →</Link>
+          </>
+        )}
+      </PageHeader>
+
+      <div className="shell pb-20">
+        <form className="card grid gap-4 p-5 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]" onSubmit={(e) => e.preventDefault()} role="search">
+          <div>
+            <label className="label" htmlFor="q">Search</label>
+            <input id="q" className="input" placeholder="furnished, parking, studio…" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="hood">Neighborhood</label>
+            <select id="hood" className="input" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)}>
+              <option value="">Anywhere</option>
+              {hoods.data?.map((h) => <option key={h}>{h}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="by">Available by</label>
+            <input id="by" type="date" className="input" value={moveInBy} onChange={(e) => setMoveInBy(e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="rent">
+              Max rent: <span className="text-ink">{maxRent >= 3500 ? 'Any' : usd(maxRent)}</span>
+            </label>
+            <input id="rent" type="range" min={500} max={3500} step={50} className="mt-2.5 w-full" value={maxRent} onChange={(e) => setMaxRent(Number(e.target.value))} />
+          </div>
+          <div>
+            <label className="label" htmlFor="sort">Sort</label>
+            <select id="sort" className="input" value={sort} onChange={(e) => setSort(e.target.value)}>
+              <option value="newest">Newest</option>
+              <option value="rent_asc">Rent: low to high</option>
+              <option value="rent_desc">Rent: high to low</option>
+            </select>
+          </div>
+          <div className="flex flex-wrap gap-2 lg:col-span-5">
+            <button type="button" className="select-pill" aria-pressed={type === ''} onClick={() => setType('')}>All types</button>
+            {TYPES.map((t) => (
+              <button key={t} type="button" className="select-pill" aria-pressed={type === t} onClick={() => setType(type === t ? '' : t)}>
+                {TYPE_LABEL[t]}
+              </button>
+            ))}
+          </div>
+        </form>
+
+        <div className="mt-4"><ErrorNote message={error} /></div>
+        <p className="mt-6 text-sm text-ink-soft" aria-live="polite">
+          {data ? `${data.length} listing${data.length === 1 ? '' : 's'}` : loading ? 'Loading…' : ''}
+        </p>
+
+        {data && data.length === 0 ? (
+          <div className="mt-4">
+            <Empty title="No listings match.">
+              <p>Loosen a filter, or be the first to post.</p>
+              <Link href="/listings/new" className="btn btn-gold mt-5">Post a listing</Link>
+            </Empty>
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {!data && [0, 1, 2].map((i) => <div key={i} className="skeleton aspect-[4/5]" />)}
+            {data?.map((l, i) => (
+              <Reveal key={l.id} delay={(i % 3) * 0.05} y={24}>
+                <ListingCard listing={l} />
+              </Reveal>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
+export default function Listings() {
+  return (
+    <Suspense>
+      <Browse />
+    </Suspense>
+  )
+}
