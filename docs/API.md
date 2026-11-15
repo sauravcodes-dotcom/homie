@@ -69,7 +69,7 @@ Response:
 }
 ```
 
-Lifestyle fields (all optional): `sleep_schedule` (`early | flexible | late`), `cleanliness`, `noise_tolerance`, `guests_frequency` (1 to 5), `smoking`, `pets` (bool).
+Lifestyle fields (all optional): `sleep_schedule` (`early | flexible | late`), `cleanliness`, `noise_tolerance`, `guests_frequency` (1 to 5), `smoking`, `drinking`, `pets` (bool), `diet` (`veg | non_veg`).
 
 ## POST /api/matching/rank
 

@@ -29,7 +29,7 @@ Offline defaults keep development, tests and CI free, deterministic and key-less
 | Budget | 0.30 | 1.0 at or under budget, linear to 0 at 25% over |
 | Dates | 0.25 | Overlap of availability and requested stay ÷ requested stay (open-ended stays assume ~11 months) |
 | Location | 0.20 | Preferred neighborhood = 1.0; else haversine distance from USC campus vs the seeker's limit; 0.5 when unknown |
-| Lifestyle | 0.25 | Mean agreement over shared fields (sleep, cleanliness, noise, guests, smoking, pets). Smoking mismatch caps it at 0.3 |
+| Lifestyle | 0.25 | Mean agreement over shared fields (sleep, cleanliness, noise, guests, smoking, drinking, diet, pets). Smoking mismatch caps it at 0.3; a veg vs non-veg mismatch scores 0.4 |
 | Semantic | 0.15 | Optional cosine similarity of profile and listing embeddings |
 
 Weights are renormalised over the factors that have data, so sparse profiles are not penalised. Each factor emits a reason string; `highlights` and `concerns` are derived from them.

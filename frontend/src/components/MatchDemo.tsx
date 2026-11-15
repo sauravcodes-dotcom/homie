@@ -7,8 +7,20 @@ const LISTING: ListingCriteria = {
   available_from: '2027-01-03',
   available_to: '2027-05-31',
   neighborhood: 'University Park',
-  lifestyle: { sleep_schedule: 'early', cleanliness: 4, smoking: false, pets: false },
+  lifestyle: {
+    sleep_schedule: 'early',
+    cleanliness: 4,
+    smoking: false,
+    drinking: false,
+    diet: 'veg',
+    pets: false,
+  },
 }
+
+const DIETS = [
+  { value: 'veg', label: 'Veg' },
+  { value: 'non_veg', label: 'Non-veg' },
+] as const
 
 const MOVE_INS = [
   { value: '2027-01-02', label: 'Jan 2' },
@@ -34,6 +46,8 @@ export function MatchDemo() {
   const [budget, setBudget] = useState(1200)
   const [moveIn, setMoveIn] = useState(MOVE_INS[0].value)
   const [smoker, setSmoker] = useState(false)
+  const [drinker, setDrinker] = useState(false)
+  const [diet, setDiet] = useState<'veg' | 'non_veg'>('veg')
   const [state, setState] = useState<State>({ kind: 'loading' })
 
   useEffect(() => {
@@ -46,7 +60,14 @@ export function MatchDemo() {
             move_in: moveIn,
             move_out: '2027-05-20',
             preferred_neighborhoods: ['University Park', 'North University Park'],
-            lifestyle: { sleep_schedule: 'early', cleanliness: 5, smoking: smoker, pets: false },
+            lifestyle: {
+              sleep_schedule: 'early',
+              cleanliness: 5,
+              smoking: smoker,
+              drinking: drinker,
+              diet,
+              pets: false,
+            },
           },
           LISTING,
           controller.signal,
@@ -60,7 +81,7 @@ export function MatchDemo() {
       clearTimeout(timer)
       controller.abort()
     }
-  }, [budget, moveIn, smoker])
+  }, [budget, moveIn, smoker, drinker, diet])
 
   return (
     <section
@@ -117,15 +138,42 @@ export function MatchDemo() {
           </div>
         </div>
 
-        <label className="flex items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            checked={smoker}
-            onChange={(e) => setSmoker(e.target.checked)}
-            className="size-4 accent-gold"
-          />
-          I smoke
-        </label>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
+          <label className="flex items-center gap-2.5">
+            <input
+              type="checkbox"
+              checked={smoker}
+              onChange={(e) => setSmoker(e.target.checked)}
+              className="size-4 accent-gold"
+            />
+            I smoke
+          </label>
+          <label className="flex items-center gap-2.5">
+            <input
+              type="checkbox"
+              checked={drinker}
+              onChange={(e) => setDrinker(e.target.checked)}
+              className="size-4 accent-gold"
+            />
+            I drink
+          </label>
+          <div role="radiogroup" aria-label="Diet" className="flex gap-1 rounded-full bg-petal/10 p-1">
+            {DIETS.map((d) => (
+              <button
+                key={d.value}
+                type="button"
+                role="radio"
+                aria-checked={diet === d.value}
+                onClick={() => setDiet(d.value)}
+                className={`rounded-full px-3 py-1 transition-colors ${
+                  diet === d.value ? 'bg-gold font-semibold text-ink' : 'text-petal hover:bg-petal/15'
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </fieldset>
 
       <Breakdown state={state} />

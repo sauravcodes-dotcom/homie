@@ -41,6 +41,8 @@ export type Lifestyle = {
   noise_tolerance?: number
   guests_frequency?: number
   smoking?: boolean
+  drinking?: boolean
+  diet?: 'veg' | 'non_veg'
   pets?: boolean
 }
 

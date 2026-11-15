@@ -59,6 +59,23 @@ def test_smoking_mismatch_caps_lifestyle():
     assert lifestyle.score <= 0.3
 
 
+def test_drinking_and_diet_mismatch_lower_lifestyle():
+    seeker = SEEKER.model_copy(
+        update={"lifestyle": Lifestyle(smoking=False, drinking=False, diet="veg")}
+    )
+    same = score_match(
+        seeker, listing(lifestyle=Lifestyle(smoking=False, drinking=False, diet="veg"))
+    )
+    diff = score_match(
+        seeker, listing(lifestyle=Lifestyle(smoking=False, drinking=True, diet="non_veg"))
+    )
+    same_ls = next(f for f in same.factors if f.factor == "lifestyle")
+    diff_ls = next(f for f in diff.factors if f.factor == "lifestyle")
+    assert same_ls.score == 1.0
+    assert diff_ls.score < 0.6
+    assert "drinking" in diff_ls.reason and "diet" in diff_ls.reason
+
+
 def test_distance_used_when_no_neighborhood_match():
     seeker = SEEKER.model_copy(update={"preferred_neighborhoods": [], "max_distance_miles": 1.0})
     near = score_match(seeker, listing(neighborhood=None, latitude=34.025, longitude=-118.285))

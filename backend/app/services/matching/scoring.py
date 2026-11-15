@@ -184,7 +184,15 @@ def _lifestyle(a: Lifestyle, b: Lifestyle) -> FactorScore | None:
     scale("noise_tolerance", "noise tolerance")
     scale("guests_frequency", "guest frequency")
     flag("smoking", "smoking")
+    flag("drinking", "drinking")
     flag("pets", "pets")
+
+    # Diet matters mostly for a shared kitchen: a mismatch is a real
+    # friction point but rarely a dealbreaker on its own.
+    if a.diet and b.diet:
+        s = 1.0 if a.diet == b.diet else 0.4
+        scores.append(s)
+        (agreements if s >= 0.75 else clashes).append("diet")
 
     if not scores:
         return None

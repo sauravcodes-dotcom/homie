@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 SleepSchedule = Literal["early", "flexible", "late"]
+Diet = Literal["veg", "non_veg"]
 
 
 class Lifestyle(BaseModel):
@@ -14,6 +15,8 @@ class Lifestyle(BaseModel):
     noise_tolerance: int | None = Field(default=None, ge=1, le=5)
     guests_frequency: int | None = Field(default=None, ge=1, le=5)
     smoking: bool | None = None
+    drinking: bool | None = None
+    diet: Diet | None = None
     pets: bool | None = None
 
 
