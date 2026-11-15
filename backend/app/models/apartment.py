@@ -2,13 +2,11 @@
 
 from datetime import date
 
-from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.session import Base
-from app.models.base import EMBEDDING_DIM, TimestampMixin
+from app.models.base import EmbeddingType, JSONType, TimestampMixin
 
 
 class Apartment(TimestampMixin, Base):
@@ -37,5 +35,5 @@ class Review(TimestampMixin, Base):
     lived_from: Mapped[date | None] = mapped_column(Date)
     lived_to: Mapped[date | None] = mapped_column(Date)
     # Structured output of the AI extraction step (see schemas.review.ReviewExtraction).
-    extraction: Mapped[dict | None] = mapped_column(JSONB)
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM))
+    extraction: Mapped[dict | None] = mapped_column(JSONType)
+    embedding: Mapped[list[float] | None] = mapped_column(EmbeddingType)

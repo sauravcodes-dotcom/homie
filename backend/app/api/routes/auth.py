@@ -1,0 +1,54 @@
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app.api.deps import bearer_token, current_user
+from app.core.config import get_settings
+from app.database.session import get_db
+from app.models import User
+from app.schemas.auth import (
+    CodeRequest,
+    CodeRequestResponse,
+    SessionOut,
+    UserOut,
+    VerifyRequest,
+)
+from app.services import auth
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _user_out(user: User) -> UserOut:
+    return UserOut(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        is_usc_verified=user.is_usc_verified,
+    )
+
+
+@router.post("/request-code", response_model=CodeRequestResponse)
+def request_code(req: CodeRequest, db: Session = Depends(get_db)) -> CodeRequestResponse:
+    """Start sign-in. Only @usc.edu addresses are accepted."""
+    result = auth.request_code(db, req.email, get_settings())
+    return CodeRequestResponse(
+        email=result.email,
+        delivered_by_email=result.delivered_by_email,
+        demo_code=result.demo_code,
+    )
+
+
+@router.post("/verify", response_model=SessionOut)
+def verify(req: VerifyRequest, db: Session = Depends(get_db)) -> SessionOut:
+    user, token = auth.verify_code(db, req.email, req.code, get_settings())
+    return SessionOut(token=token, user=_user_out(user))
+
+
+@router.get("/me", response_model=UserOut)
+def me(user: User = Depends(current_user)) -> UserOut:
+    return _user_out(user)
+
+
+@router.post("/logout", status_code=204)
+def logout(token: str | None = Depends(bearer_token), db: Session = Depends(get_db)) -> None:
+    if token:
+        auth.revoke_token(db, token)

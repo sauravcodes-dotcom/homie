@@ -8,5 +8,8 @@ class HealthResponse(BaseModel):
     version: str
     environment: str
     database: Literal["ok", "unavailable"]
+    # "temporary" = throwaway SQLite on a serverless host; data resets on restart.
+    storage: Literal["postgres", "temporary", "sqlite"]
+    auth_mode: Literal["email", "demo"]
     llm_provider: str
     embedding_provider: str

@@ -27,6 +27,32 @@ Always `200`.
 
 `status` is `degraded` and `database` is `unavailable` when Postgres cannot be reached.
 
+## Auth (USC email only)
+
+Passwordless sign-in. Only addresses whose domain is exactly `usc.edu` are accepted (`x@notusc.edu`, `x@mail.usc.edu` and `x@usc.edu.evil.com` are rejected with `403 email_domain_not_allowed`).
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| POST | `/api/auth/request-code` | `{ "email" }` → `{ email, delivered_by_email, demo_code }`. `demo_code` is only set in demo mode (no `RESEND_API_KEY`). |
+| POST | `/api/auth/verify` | `{ email, code }` → `{ token, user }`. Codes expire after 10 minutes, allow 5 attempts and are single-use. |
+| GET | `/api/auth/me` | Requires `Authorization: Bearer <token>`. |
+| POST | `/api/auth/logout` | Revokes the token. `204`. |
+
+Codes and session tokens are stored only as hashes.
+
+## Listings and the roommate feedback channel
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/api/listings` | All listings with a roommate feedback summary (`count`, `average_rating`, `top_tags`). |
+| GET | `/api/listings/{id}` | Listing plus every roommate note. |
+| POST | `/api/listings` | Signed in. Creates a listing; the building is matched or created by name. |
+| POST | `/api/listings/{id}/roommate-feedback` | Signed in **and** the listing's owner (the student subleasing). Others get `403`. Body: `{ rating: 1-5, tags: [...], comment }`. |
+
+Allowed tags: `friendly, clean, quiet, social, respectful, studious, pays on time, shares chores`.
+
+A demo listing is seeded on startup: *Private room in unit 3157 at Lorenzo* (The Residences at Lorenzo, 325 W Adams Blvd) with the roommate note "The roommates are very cool."
+
 ## POST /api/matching/score
 
 Score one seeker against one listing.

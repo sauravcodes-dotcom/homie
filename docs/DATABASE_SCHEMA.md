@@ -74,6 +74,24 @@ users ─┬─< listings >── apartments ──< reviews
 | embedding | vector(N) | for RAG retrieval |
 | created_at | timestamptz | reporting period is computed from this |
 
+## login_codes / user_sessions
+
+One-time sign-in codes (HMAC hash, expiry, attempt count, used flag) and session tokens (SHA-256 hash, expiry). Raw codes and tokens are never stored.
+
+## roommate_feedback
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | serial PK | |
+| listing_id | FK listings | cascade delete |
+| author_id | FK users | must be the listing owner (the subleaser) |
+| rating | int | 1 to 5 |
+| tags | json | from a fixed tag set |
+| comment | text | |
+| created_at | timestamptz | |
+
+Listings also gained `unit` and `is_demo`. On SQLite (tests, the Vercel demo fallback) JSONB becomes JSON and vector columns are stored as JSON arrays.
+
 ## Indexes to add with real data
 
 - HNSW indexes for similarity search, e.g. `CREATE INDEX ON listings USING hnsw (embedding vector_cosine_ops);` (same for `seeker_profiles`, `reviews`).

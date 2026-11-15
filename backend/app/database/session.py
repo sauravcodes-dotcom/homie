@@ -14,12 +14,15 @@ class Base(DeclarativeBase):
 
 _settings = get_settings()
 
-engine = create_engine(
-    _settings.database_url,
-    pool_pre_ping=True,
-    # Fail fast instead of hanging when Postgres is not running.
-    connect_args={"connect_timeout": 3},
-)
+if _settings.is_sqlite:
+    engine = create_engine(_settings.database_url, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(
+        _settings.database_url,
+        pool_pre_ping=True,
+        # Fail fast instead of hanging when Postgres is not running.
+        connect_args={"connect_timeout": 3},
+    )
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 

@@ -14,7 +14,9 @@ export function ApiStatus() {
       : health === 'error'
         ? ['bg-alert', 'API offline']
         : health.status === 'ok'
-          ? ['bg-pool', `API v${health.version}, database connected`]
+          ? health.storage === 'temporary'
+            ? ['bg-gold', `API v${health.version}, demo storage (resets periodically)`]
+            : ['bg-pool', `API v${health.version}, database connected`]
           : ['bg-gold', `API v${health.version}, database not connected`]
 
   return (
