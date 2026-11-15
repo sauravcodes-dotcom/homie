@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOMIE Rating Engine, explained</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f4f3ef;
+    --surface-1: #fcfcfb;
+    --border: #e2e0d9;
+    --grid: #ebe9e3;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #85837d;
+    --s1: #2a78d6;   /* HOMIE engine */
+    --s1-soft: #cde2fb;
+    --s2: #eb6834;   /* plain average */
+    --s3: #1baf7a;   /* simple Bayesian average */
+    --neutral: #a9a69c;
+    --critical: #c62d2c;
+    --critical-soft: #fbe3e2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --surface-0: #121211;
+      --surface-1: #1a1a19;
+      --border: #33332f;
+      --grid: #2a2a27;
+      --text-primary: #f0efec;
+      --text-secondary: #c3c2b7;
+      --text-muted: #8c8b83;
+      --s1: #3987e5;
+      --s1-soft: #1c3557;
+      --s2: #d95926;
+      --s3: #199e70;
+      --neutral: #6b6a63;
+      --critical: #e66767;
+      --critical-soft: #3a1d1d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--surface-0); color: var(--text-primary);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 48px 24px 96px; }
+  h1 { font-size: 40px; line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 12px; }
+  h2 { font-size: 26px; letter-spacing: -0.01em; margin: 0 0 6px; }
+  h3 { font-size: 17px; margin: 0 0 6px; }
+  p { margin: 0 0 12px; color: var(--text-secondary); }
+  .lede { font-size: 19px; max-width: 720px; }
+  .kicker { text-transform: uppercase; letter-spacing: .08em; font-size: 12px; font-weight: 600; color: var(--s1); margin-bottom: 6px; }
+  section { margin-top: 56px; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 760px) { .grid2, .grid3 { grid-template-columns: 1fr; } h1 { font-size: 30px; } }
+  .idea-num { display: inline-flex; width: 28px; height: 28px; border-radius: 50%; background: var(--s1); color: #fff; font-weight: 700; font-size: 14px; align-items: center; justify-content: center; margin-right: 8px; }
+  .formula { font: 15px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-0); border-radius: 10px; padding: 14px 16px; color: var(--text-primary); overflow-x: auto; }
+  .muted { color: var(--text-muted); font-size: 14px; }
+  button, select { font: inherit; font-size: 14px; }
+  button { background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button:hover { border-color: var(--text-muted); }
+  button.primary { background: var(--s1); border-color: var(--s1); color: #fff; font-weight: 600; }
+  button.on { background: var(--text-primary); color: var(--surface-1); border-color: var(--text-primary); }
+  select { background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .row label { font-size: 14px; color: var(--text-secondary); }
+  .big { font-size: 44px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; color: var(--text-muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--grid); color: var(--text-secondary); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .scroll { max-height: 230px; overflow-y: auto; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--text-secondary); margin: 6px 0 4px; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  svg text { fill: var(--text-muted); font-size: 12px; }
+  .tip { position: fixed; pointer-events: none; background: var(--text-primary); color: var(--surface-1); font-size: 13px; padding: 6px 9px; border-radius: 6px; opacity: 0; transition: opacity .08s; z-index: 10; max-width: 260px; }
+  .alert { border: 1px solid var(--critical); background: var(--critical-soft); color: var(--text-primary); border-radius: 8px; padding: 2px 8px; font-size: 13px; display: inline-block; }
+  .slider { width: 100%; }
+  .catrow { display: grid; grid-template-columns: 110px 1fr 120px; gap: 10px; align-items: center; margin: 6px 0; font-size: 14px; }
+  .ref { font-size: 14px; }
+  .ref a { color: var(--s1); text-decoration: none; font-weight: 600; }
+  .ref a:hover { text-decoration: underline; }
+  .step { display: flex; gap: 12px; margin-bottom: 14px; }
+  .step b { color: var(--text-primary); }
+  .stat { font-size: 30px; font-weight: 700; }
+  details summary { cursor: pointer; color: var(--s1); font-weight: 600; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="tip" id="tip"></div>
+<main>
+
+<div class="kicker">HOMIE · Rating engine proposal</div>
+<h1>How should HOMIE score an apartment?</h1>
+<p class="lede">Today HOMIE takes a plain average of the stars. That's easy to read but easy to fool. This page walks through a better approach one idea at a time. You can play with each idea, then run a simulation that compares the methods on made-up USC housing markets.</p>
+
+<!-- ======================= PROBLEM ======================= -->
+<section>
+  <div class="kicker">The problem</div>
+  <h2>Five ways a plain average misleads students</h2>
+  <div class="grid3" style="margin-top:16px">
+    <div class="card"><h3>1 review ≠ 100 reviews</h3><p>A building with one 5★ review beats a building with 120 reviews averaging 4.6. One happy friend of the landlord shouldn't win.</p></div>
+    <div class="card"><h3>Only the loud review</h3><p>People who loved or hated a place write reviews. People who thought it was "fine" mostly don't. Research calls this the <em>J-shaped</em> pattern.</p></div>
+    <div class="card"><h3>Fakes and grudges</h3><p>Six angry or fake reviews posted in one week can sink a good building. A small push of fake 5★ reviews can lift a bad one.</p></div>
+    <div class="card"><h3>Buildings change</h3><p>New management can fix (or ruin) a building. A 2022 review about broken AC says little about 2026.</p></div>
+    <div class="card"><h3>Everyone cares about different things</h3><p>One student cares most about safety, another about price and noise. A single number hides that.</p></div>
+    <div class="card"><h3>Inflation</h3><p>On Airbnb about 95% of listings sit at 4.5★ or higher. When everything is "4.7", the number stops telling you anything.</p></div>
+  </div>
+</section>
+
+<!-- ======================= CORE IDEA ======================= -->
+<section>
+  <div class="kicker">The core idea in one line</div>
+  <h2>Start at the campus average. Let trustworthy, recent reviews move you.</h2>
+  <p>Every building starts at the USC-wide average. Each review pulls the score toward what it says. How hard it pulls depends on <b>who</b> wrote it and <b>how recent</b> it is. With few reviews the score stays near average. With many it follows the reviews.</p>
+  <div class="formula">
+    HOMIE score ≈ ( k × campus average  +  Σ weight × stars ) ÷ ( k + Σ weight )<br>
+    <span class="muted">weight = trust (who wrote it) × freshness (how old it is)<br>
+    k ≈ "how many reviews it takes to outweigh the campus average"</span>
+  </div>
+  <p class="muted" style="margin-top:10px">That's the simple version. The real engine does the same thing with probabilities (a <em>Bayesian</em> model), so it can also say how sure it is and spot reviews that look fake. The demos below use the real engine.</p>
+</section>
+
+<!-- ======================= PLAYGROUND ======================= -->
+<section>
+  <div class="kicker">Try it</div>
+  <h2>Score playground</h2>
+  <p>Add reviews or pick a scenario. Watch the plain average (orange) and the HOMIE score (blue) react differently.</p>
+
+  <div class="card">
+    <div class="row">
+      <label>Scenario:</label>
+      <button data-preset="one">One 5★ review</button>
+      <button data-preset="solid">Popular &amp; solid</button>
+      <button data-preset="bomb">Review bomb</button>
+      <button data-preset="better">New management</button>
+      <button data-preset="split">Love it or hate it</button>
+      <button data-preset="empty">Clear</button>
+    </div>
+    <div class="row">
+      <label>Add a review from</label>
+      <select id="pg-src">
+        <option value="verified">a verified resident</option>
+        <option value="student">a USC student (residency not proven)</option>
+        <option value="anonymous">an anonymous account</option>
+      </select>
+      <label>written</label>
+      <select id="pg-age">
+        <option value="10">this month</option>
+        <option value="365">1 year ago</option>
+        <option value="1095">3 years ago</option>
+      </select>
+      <span id="pg-stars"></span>
+    </div>
+
+    <div class="grid2" style="margin-top:12px">
+      <div>
+        <div class="muted">HOMIE score</div>
+        <div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap">
+          <span class="big" id="pg-score">–</span>
+          <span id="pg-conf" class="pill">–</span>
+        </div>
+        <div class="muted" id="pg-range" style="margin-top:4px">–</div>
+        <div style="margin-top:14px" class="muted">Plain average: <b id="pg-raw" style="color:var(--text-primary)">–</b> &nbsp;·&nbsp; Campus average: <b id="pg-campus" style="color:var(--text-primary)">–</b></div>
+        <div id="pg-bar" style="margin-top:12px"></div>
+        <div class="legend">
+          <span><span class="sw" style="background:var(--s1)"></span>HOMIE score + likely range</span>
+          <span><span class="sw" style="background:var(--s2)"></span>Plain average</span>
+          <span><span class="sw" style="background:var(--neutral)"></span>Campus average</span>
+        </div>
+      </div>
+      <div>
+        <div class="muted">Where the true score probably is</div>
+        <div id="pg-belief"></div>
+        <div class="legend">
+          <span><span class="sw" style="background:var(--s1)"></span>After the reviews</span>
+          <span><span class="sw" style="background:var(--neutral)"></span>Before any reviews (campus average)</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="muted" style="margin-bottom:4px">Reviews (<span id="pg-n">0</span>). <b>Counts as</b> = trust × freshness. <b>Looks off</b> = chance the engine thinks this review isn't an honest report.</div>
+      <div class="scroll"><table id="pg-table"></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= THE IDEAS ======================= -->
+<section>
+  <div class="kicker">What's going on inside</div>
+  <h2>Six ideas, explained simply</h2>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card">
+      <h3><span class="idea-num">1</span>Borrow strength from campus</h3>
+      <p>No reviews? You get the campus average, labelled "not enough reviews yet". Each review moves the score a bit. Statisticians call this <em>shrinkage</em>. It's the main reason a single 5★ can't put a building at #1.</p>
+    </div>
+    <div class="card">
+      <h3><span class="idea-num">2</span>Show the range, not just the number</h3>
+      <p>"4.1★ (likely 3.6–4.5)" is more honest than "4.1★". The range shrinks as reviews come in. Sorting the "best buildings" list by the <b>bottom of that range</b> means a building has to prove itself to reach the top.</p>
+    </div>
+    <div class="card">
+      <h3><span class="idea-num">3</span>Not every review counts the same</h3>
+      <p>Verified residents get the most trust, anonymous accounts the least. The engine also assumes any review <em>might</em> be junk, which caps how far one review can move the score. A burst of untrusted reviews in the same week gets trusted even less.</p>
+    </div>
+    <div class="card">
+      <h3><span class="idea-num">4</span>Recent reviews matter more</h3>
+      <p>A review loses half its weight every 2 years. When new management turns a building around, the score follows in months, not years. If recent reviews clearly differ from older ones, the page shows <b>"Improving"</b> or <b>"Declining"</b>.</p>
+      <div id="decay-chart"></div>
+    </div>
+    <div class="card">
+      <h3><span class="idea-num">5</span>Read the words, not just the stars</h3>
+      <p>HOMIE's AI already turns each review into topics (pests, safety, noise…) marked positive, mixed or negative. Each topic gets its own score, which starts at the building's overall score, so one comment can't swing it much. <b>Serious problems like safety incidents are never averaged away.</b> They're always shown as a count.</p>
+    </div>
+    <div class="card">
+      <h3><span class="idea-num">6</span>Your score, your priorities</h3>
+      <p>Tell HOMIE what matters to you and it re-weights the topic scores into a personal score. Same reviews, different answer for different students. Try it below.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= TOPICS & PERSONAL ======================= -->
+<section>
+  <div class="kicker">Try it</div>
+  <h2>Topic scores and your personal score</h2>
+  <p>An example building with 18 reviews. Move the sliders to say what you care about.</p>
+  <div class="card">
+    <div class="grid2">
+      <div>
+        <div class="muted" style="margin-bottom:6px">Topic scores (bar = likely range, dot = best guess)</div>
+        <div id="cats"></div>
+      </div>
+      <div>
+        <div class="muted" style="margin-bottom:6px">How much do you care? (0 = not at all)</div>
+        <div id="prios"></div>
+        <div style="margin-top:16px; display:flex; gap:28px; flex-wrap:wrap">
+          <div><div class="muted">Overall score</div><div class="stat" id="overall-s">–</div></div>
+          <div><div class="muted">Your personal score</div><div class="stat" style="color:var(--s1)" id="personal-s">–</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= ROOMMATES ======================= -->
+<section>
+  <div class="kicker">Roommate ratings</div>
+  <h2>Who should rate the roommates?</h2>
+  <p>Right now the student subleasing the room rates their own roommates. That student wants the room taken, so they have every reason to say "great roommates!" Research on Airbnb found the same thing with hosts and guests: people go easy when the other side might see the review or hit back.</p>
+  <div class="grid3" style="margin-top:12px">
+    <div class="card">
+      <h3>Subleaser's own rating</h3>
+      <p>Treated as a hint, not a verdict. The engine assumes it runs high and is noisy.</p>
+      <p class="muted">5★ from the subleaser alone →</p>
+      <div class="stat" id="rm-a">–</div>
+    </div>
+    <div class="card">
+      <h3>+ New tenant, after 30 days</h3>
+      <p>The person who actually moved in rates the roommates after a month. Full trust.</p>
+      <p class="muted">…plus one 3★ from the new tenant →</p>
+      <div class="stat" id="rm-b">–</div>
+    </div>
+    <div class="card">
+      <h3>Reveal both at once</h3>
+      <p>Neither rating shows until both are in, or 14 days pass. Airbnb's experiment found this reduced retaliation and brought out more honest negative feedback.</p>
+    </div>
+  </div>
+  <p class="muted" style="margin-top:12px">Longer term: how good a roommate is depends on the pair, not just the person. A night owl is a fine roommate for another night owl. So for roommates, "how well will <b>you</b> get along" (HOMIE's lifestyle matching) matters more than a single star number.</p>
+</section>
+
+<!-- ======================= SIMULATION ======================= -->
+<section>
+  <div class="kicker">Simulation lab</div>
+  <h2>Does it actually work? Test it on fake USC markets.</h2>
+  <p>Each run builds a made-up market of 60 buildings, each with a hidden <b>true quality</b> that only the simulator knows. It then writes 4 years of reviews with real-world problems built in: happy and angry people review more often, raters differ in how harsh they are, some buildings change management, and some get fake review campaigns. Each method sees only the reviews. We check which one gets closest to the hidden truth.</p>
+  <p class="muted">The simulator deliberately uses slightly different settings from the engine, so the engine doesn't get a free pass from knowing exactly how the reviews were made.</p>
+
+  <div class="card">
+    <div class="row">
+      <label><input type="checkbox" id="k-fakes" checked> Fake review campaigns</label>
+      <label><input type="checkbox" id="k-changes" checked> Management changes</label>
+      <label>Reviews per building:
+        <select id="k-volume">
+          <option value="0.5">few (~5)</option>
+          <option value="1.2" selected>typical (~13)</option>
+          <option value="3">many (~30)</option>
+        </select>
+      </label>
+      <label>Markets:
+        <select id="k-worlds">
+          <option value="20">20</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+        </select>
+      </label>
+      <button class="primary" id="run">Run simulation</button>
+      <span class="muted" id="run-status"></span>
+    </div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--s2)"></span>Plain average (today)</span>
+      <span><span class="sw" style="background:var(--s3)"></span>Simple shrinkage (add 5 "campus average" reviews)</span>
+      <span><span class="sw" style="background:var(--s1)"></span>HOMIE engine (everything on this page)</span>
+    </div>
+    <div class="grid2" id="sim-results" style="margin-top:8px"></div>
+    <details style="margin-top:12px"><summary>Show results as a table</summary><div id="sim-table" style="margin-top:8px"></div></details>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3>One market up close</h3>
+    <p>Each dot is a building. Left to right is how good it <b>really</b> is. Bottom to top is where the method ranks it. A perfect method puts every dot on the diagonal. Ringed dots got fake reviews.</p>
+    <div class="row" id="scatter-toggle">
+      <button data-m="raw">Plain average</button>
+      <button data-m="shrink">Simple shrinkage</button>
+      <button data-m="homie" class="on">HOMIE engine</button>
+    </div>
+    <div id="scatter"></div>
+    <div class="legend" id="scatter-legend"></div>
+  </div>
+</section>
+
+<!-- ======================= RESEARCH ======================= -->
+<section>
+  <div class="kicker">What the research says</div>
+  <h2>Where each idea comes from</h2>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card ref"><a href="https://www.evanmiller.org/ranking-items-with-star-ratings.html" target="_blank">Miller: Ranking items with star ratings</a><p>Don't rank by the average. Rank by a cautious lower estimate, so items with few ratings don't jump to the top. → Ideas 1 &amp; 2</p></div>
+    <div class="card ref"><a href="https://dl.acm.org/doi/10.25300/MISQ/2017/41.2.06" target="_blank">Hu, Pavlou &amp; Zhang (MIS Quarterly 2017): Self-selection bias</a><p>Reviews are J-shaped because people with strong feelings post. When everyone was asked to review, ratings looked normal. The average alone is a biased signal. → Why we model raters, and why we should ask every tenant to review</p></div>
+    <div class="card ref"><a href="https://people.bu.edu/zg/publications/airbnbreviews.pdf" target="_blank">Zervas, Proserpio &amp; Byers: Airbnb, where every stay is above average</a><p>About 95% of Airbnb listings average 4.5★ or higher. → Show a percentile ("better than 70% of USC buildings") next to stars</p></div>
+    <div class="card ref"><a href="https://pubsonline.informs.org/doi/10.1287/mksc.2021.1311" target="_blank">Fradkin, Grewal &amp; Holtz (Marketing Science 2021): Reciprocity on Airbnb</a><p>Hiding reviews until both sides submit reduced retaliation and brought out more negative text. → Roommate rating design</p></div>
+    <div class="card ref"><a href="https://www.tse-fr.eu/sites/default/files/TSE/documents/conf/2021/filippas.pdf" target="_blank">Filippas &amp; Horton: Reputation inflation</a><p>Ratings creep upward over time on online marketplaces. → Compare each building to the campus, not to a fixed number</p></div>
+    <div class="card ref"><a href="https://arxiv.org/abs/2602.22585" target="_blank">Casabianca &amp; Beiting-Parrish (2026): Correcting for rater effects</a><p>Some raters are harsh and some are generous. Psychometric models (item response theory) separate the rater from the thing being rated. → Raters are part of the model</p></div>
+    <div class="card ref"><a href="https://arxiv.org/pdf/0711.3964" target="_blank">de Kerchove &amp; Van Dooren: Iterative filtering</a><p>Reputation systems should limit how much any single rater can move a score, which makes them resistant to spammers. → Idea 3 (trust caps)</p></div>
+    <div class="card ref"><a href="https://pages.stern.nyu.edu/~lcabral/workingpapers/CabralHortacsu_Aug08.pdf" target="_blank">Cabral &amp; Hortaçsu: Dynamics of seller reputation (eBay)</a><p>Reputation changes over time, and recent feedback predicts what comes next. → Idea 4 (freshness)</p></div>
+    <div class="card ref"><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC13693978" target="_blank">Prediction-powered inference (Angelopoulos et al., Science 2023; 2026 review)</a><p>Let AI label lots of data, then use a small sample of human-checked labels to correct its mistakes, with honest error bars. → Idea 5: check a sample of AI topic extractions by hand each month</p></div>
+    <div class="card ref"><a href="https://arxiv.org/abs/2608.02455" target="_blank">Aggregate-then-Calibrate (ICLR 2026)</a><p>Combining human judgments with model scores beats either one alone. → Stars + AI-read text together</p></div>
+    <div class="card ref"><a href="https://www.sfu.ca/~tswartz/papers/dyadic1.pdf" target="_blank">Gill &amp; Swartz: Bayesian analysis of dyadic data</a><p>In student residence halls, how much roommates like each other depends on the person, the partner and the specific pair. → Roommate quality is about fit</p></div>
+    <div class="card ref"><a href="https://www.mdpi.com/2227-7390/14/17/3212" target="_blank">Two-stage Bayesian ordinal model for ride-hailing reviews (2026)</a><p>Uses a Bayesian model built for star ratings and recommends tiered, uncertainty-aware rankings over one fixed list. → Ideas 1 &amp; 2</p></div>
+  </div>
+</section>
+
+<!-- ======================= ROADMAP ======================= -->
+<section>
+  <div class="kicker">Proposal</div>
+  <h2>How we'd roll it out</h2>
+  <div class="card">
+    <div class="step"><span class="idea-num">1</span><div><b>Ranges and confidence first.</b> Show "4.1★ (3.6–4.5) · 12 reviews · medium confidence" and sort "best" lists by the cautious score. Biggest win, smallest change.</div></div>
+    <div class="step"><span class="idea-num">2</span><div><b>Trust and freshness.</b> Weight verified residents above everyone else, halve a review's weight every 2 years, and flag bursts of untrusted reviews for a moderator.</div></div>
+    <div class="step"><span class="idea-num">3</span><div><b>Topic scores and personal scores.</b> Use the AI topic extraction we already have. Always surface serious safety reports as a count.</div></div>
+    <div class="step"><span class="idea-num">4</span><div><b>Fix roommate ratings.</b> The new tenant rates after 30 days, both ratings are revealed together, and the subleaser's rating counts as a hint only.</div></div>
+    <div class="step"><span class="idea-num">5</span><div><b>Tune on real data.</b> Once there are a few hundred reviews, refit the engine's settings (how harsh students are, how fast reviews go stale) from HOMIE's own data every month, and hand-check a sample of the AI's topic labels.</div></div>
+    <p class="muted" style="margin:6px 0 0">Everything runs in a few milliseconds per building with no extra infrastructure. Same reviews in, same score out, which keeps HOMIE's rule that "numbers are computed, words are generated".</p>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ ENGINE + SIMULATOR (no page access in this block) ============ -->
+<script id="core">
+// ---------- math helpers ----------
+function erf(x) { // Abramowitz & Stegun 7.1.26
+  const s = Math.sign(x); x = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * x);
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  return s * y;
+}
+const Phi = x => 0.5 * (1 + erf(x / Math.SQRT2));
+
+// ---------- the HOMIE engine ----------
+// Hidden quality "theta" lives on a grid. Each review is an ordered-probit observation
+// of theta, mixed with a "junk" chance that depends on who wrote it, and weighted
+// by freshness. The posterior is computed exactly on the grid.
+const GRID = []; for (let i = 0; i <= 160; i++) GRID.push(-4 + i * 0.05);
+const MODEL = {
+  tau: [-1.9, -1.2, -0.5, 0.4], noise: 0.75,
+  junk: [0.40, 0.07, 0.06, 0.07, 0.40],
+  halfLife: 730, burstWindow: 30, burstN: 3, burstEps: 0.6,
+};
+const SRC = {
+  verified:  { label: 'Verified resident', eps: 0.03, bias: 0, noise: 1 },
+  student:   { label: 'USC student', eps: 0.12, bias: 0, noise: 1 },
+  anonymous: { label: 'Anonymous', eps: 0.30, bias: 0, noise: 1 },
+  subleaser: { label: 'Subleaser (own roommates)', eps: 0.10, bias: 0.8, noise: 1.3 },
+  tenant:    { label: 'New tenant after 30 days', eps: 0.05, bias: 0, noise: 1 },
+};
+const TRUSTED = new Set(['verified', 'tenant']);
+
+function starProb(theta, k, scale) {
+  const lo = k === 0 ? 0 : Phi((MODEL.tau[k - 1] - theta) / scale);
+  const hi = k === 4 ? 1 : Phi((MODEL.tau[k] - theta) / scale);
+  return Math.max(hi - lo, 1e-12);
+}
+function expStars(theta) {
+  let s = 1; for (const t of MODEL.tau) s += 1 - Phi((t - theta) / MODEL.noise); return s;
+}
+const TABLES = {};
+function table(src) {
+  if (!TABLES[src]) {
+    const s = SRC[src], sc = MODEL.noise * s.noise;
+    TABLES[src] = [0, 1, 2, 3, 4].map(k => GRID.map(t => starProb(t + s.bias, k, sc)));
+  }
+  return TABLES[src];
+}
+function quantile(post, q) {
+  let acc = 0;
+  for (let g = 0; g < post.length; g++) { acc += post[g]; if (acc >= q) return GRID[g]; }
+  return GRID[GRID.length - 1];
+}
+const PRIOR = (() => { const w = GRID.map(t => Math.exp(-0.5 * t * t)); const z = w.reduce((a, b) => a + b, 0); return w.map(v => v / z); })();
+const CAMPUS_STARS = PRIOR.reduce((a, p, g) => a + p * expStars(GRID[g]), 0);
+
+function homie(reviews, opt = {}) {
+  const decay = opt.decay !== false, robust = opt.robust !== false;
+  const n = GRID.length, lp = GRID.map(t => -0.5 * t * t);
+  const untrusted = reviews.filter(r => !TRUSTED.has(r.source));
+  const info = reviews.map(r => {
+    const w = decay ? Math.pow(0.5, r.ageDays / MODEL.halfLife) : 1;
+    let eps = robust ? SRC[r.source].eps : 0;
+    if (robust && !TRUSTED.has(r.source)) {
+      const near = untrusted.filter(o => Math.abs(o.ageDays - r.ageDays) <= MODEL.burstWindow).length;
+      if (near > MODEL.burstN) eps = Math.max(eps, MODEL.burstEps);
+    }
+    return { w, eps };
+  });
+  reviews.forEach((r, i) => {
+    const { w, eps } = info[i], k = r.stars - 1, tb = table(r.source)[k], j = MODEL.junk[k] * eps;
+    for (let g = 0; g < n; g++) lp[g] += w * Math.log((1 - eps) * tb[g] + j);
+  });
+  const top = Math.max(...lp);
+  let post = lp.map(v => Math.exp(v - top));
+  const z = post.reduce((a, b) => a + b, 0); post = post.map(v => v / z);
+  let mean = 0; for (let g = 0; g < n; g++) mean += post[g] * GRID[g];
+  let v = 0; for (let g = 0; g < n; g++) v += post[g] * (GRID[g] - mean) ** 2;
+  const sd = Math.sqrt(v);
+  let stars = 0; for (let g = 0; g < n; g++) stars += post[g] * expStars(GRID[g]);
+  const q10 = quantile(post, 0.10), q20 = quantile(post, 0.20), q90 = quantile(post, 0.90);
+  const share = Math.max(0, 1 - v);
+  const confidence = reviews.length === 0 ? 'No reviews yet' : share < 0.5 ? 'Low confidence' : share < 0.8 ? 'Medium confidence' : 'High confidence';
+  const perReview = reviews.map((r, i) => {
+    const { w, eps } = info[i], k = r.stars - 1, tb = table(r.source)[k], j = MODEL.junk[k] * eps;
+    let off = 0; for (let g = 0; g < n; g++) off += post[g] * j / ((1 - eps) * tb[g] + j);
+    return { countsAs: w * (1 - eps), looksOff: off };
+  });
+  return { post, mean, sd, stars, lo: expStars(q10), hi: expStars(q90), rank: q20, confidence, perReview };
+}
+
+// ---------- baselines ----------
+const avg = xs => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN;
+function rawAverage(reviews, campus) { return reviews.length ? avg(reviews.map(r => r.stars)) : campus; }
+function simpleShrink(reviews, campus, C = 5) { return (C * campus + reviews.reduce((a, r) => a + r.stars, 0)) / (C + reviews.length); }
+
+// ---------- simulator ----------
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function makeRng(seed) {
+  const u = mulberry32(seed);
+  return {
+    u,
+    n() { let a = 0; while (a === 0) a = u(); return Math.sqrt(-2 * Math.log(a)) * Math.cos(2 * Math.PI * u()); },
+    pois(l) { const L = Math.exp(-l); let k = 0, p = 1; do { k++; p *= u(); } while (p > L); return k - 1; },
+    pick(arr, m) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(u() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, m); },
+  };
+}
+const TRUE_TAU = [-2.1, -1.4, -0.6, 0.25]; // the simulator's raters, not the engine's settings
+
+function makeWorld(seed, knobs) {
+  const r = makeRng(seed), B = 60, M = 48, bs = [];
+  for (let a = 0; a < B; a++) {
+    const base = r.n();
+    const cp = knobs.changes && r.u() < 0.2 ? { m: 12 + Math.floor(r.u() * 32), jump: 1.2 * r.n() } : null;
+    const q = t => base + (cp && t >= cp.m ? cp.jump : 0);
+    const pop = Math.exp(Math.log(knobs.volume) + 0.8 * r.n());
+    const reviews = [];
+    for (let t = 0; t < M; t++) {
+      const c = r.pois(pop);
+      for (let i = 0; i < c; i++) {
+        const x = q(t) + 0.45 * r.n() + 0.55 * r.n();           // rater harshness + day-to-day noise
+        const p = Math.min(0.9, 0.12 * (0.35 + Math.abs(x - 0.2))); // strong feelings -> more likely to post
+        if (r.u() < p) {
+          let s = 1; for (const tt of TRUE_TAU) if (x > tt) s++;
+          reviews.push({ stars: s, source: r.u() < 0.55 ? 'verified' : 'student', ageDays: (M - 1 - t) * 30.4 + r.u() * 30 });
+        }
+      }
+    }
+    bs.push({ id: a, truth: q(M - 1), changed: !!cp && Math.abs(cp.jump) > 0.6, reviews, fakes: [] });
+  }
+  if (knobs.fakes) {
+    const order = bs.slice().sort((x, y) => x.truth - y.truth).map(b => b.id);
+    const bottom = order.slice(0, B / 2), topHalf = order.slice(B / 2);
+    for (const id of r.pick(bottom, 4)) {   // boost campaign: fake 5-stars
+      for (let i = 0; i < 8; i++) bs[id].fakes.push({ stars: 5, source: 'student', ageDays: r.u() * 20 });
+      bs[id].attack = 'boost';
+    }
+    for (const id of r.pick(topHalf, 3)) { // review bomb: fake 1-stars
+      for (let i = 0; i < 6; i++) bs[id].fakes.push({ stars: 1, source: 'student', ageDays: r.u() * 20 });
+      bs[id].attack = 'bomb';
+    }
+  }
+  return bs;
+}
+
+function ranks(xs) { // 1 = best, ties averaged
+  const idx = xs.map((v, i) => i).sort((a, b) => xs[b] - xs[a]);
+  const out = new Array(xs.length); let i = 0;
+  while (i < idx.length) { let j = i; while (j + 1 < idx.length && xs[idx[j + 1]] === xs[idx[i]]) j++; const rk = (i + j) / 2 + 1; for (let k = i; k <= j; k++) out[idx[k]] = rk; i = j + 1; }
+  return out;
+}
+function spearman(a, b) {
+  const ra = ranks(a), rb = ranks(b), ma = avg(ra), mb = avg(rb);
+  let num = 0, da = 0, db = 0;
+  for (let i = 0; i < a.length; i++) { num += (ra[i] - ma) * (rb[i] - mb); da += (ra[i] - ma) ** 2; db += (rb[i] - mb) ** 2; }
+  return num / Math.sqrt(da * db);
+}
+const METHODS = ['raw', 'shrink', 'homie'];
+function scoreWorld(world, withFakes) {
+  const blds = world.filter(b => b.reviews.length > 0);
+  const revs = blds.map(b => withFakes ? b.reviews.concat(b.fakes) : b.reviews);
+  const campus = avg(revs.flat().map(r => r.stars));
+  const h = revs.map(rv => homie(rv));
+  return {
+    blds,
+    est: { raw: revs.map(rv => rawAverage(rv, campus)), shrink: revs.map(rv => simpleShrink(rv, campus)), homie: h.map(x => x.mean) },
+    sortKey: { raw: revs.map(rv => rawAverage(rv, campus)), shrink: revs.map(rv => simpleShrink(rv, campus)), homie: h.map(x => x.rank) },
+  };
+}
+function evaluateWorld(world) {
+  const dirty = scoreWorld(world, true), clean = scoreWorld(world, false);
+  const truth = dirty.blds.map(b => b.truth), tr = ranks(truth), N = truth.length;
+  const out = {};
+  for (const m of METHODS) {
+    const er = ranks(dirty.est[m]);
+    const sr = ranks(dirty.sortKey[m]);
+    const top10 = dirty.blds.filter((b, i) => tr[i] <= 10 && sr[i] <= 10).length;
+    const cr = ranks(clean.est[m]);
+    const attacked = dirty.blds.map((b, i) => i).filter(i => dirty.blds[i].attack);
+    const fooled = attacked.length ? avg(attacked.map(i => Math.abs(er[i] - cr[i]))) : NaN;
+    const changed = dirty.blds.map((b, i) => i).filter(i => dirty.blds[i].changed);
+    const changedErr = changed.length ? avg(changed.map(i => Math.abs(er[i] - tr[i]))) : NaN;
+    out[m] = { rho: spearman(dirty.est[m], truth), top10, fooled, changedErr, N };
+  }
+  return { metrics: out, dirty, truth };
+}
+function runSimulation(knobs, worlds) {
+  const acc = {}; for (const m of METHODS) acc[m] = { rho: [], top10: [], fooled: [], changedErr: [] };
+  let example = null;
+  for (let w = 0; w < worlds; w++) {
+    const res = evaluateWorld(makeWorld(1000 + w, knobs));
+    if (w === 0) example = res;
+    for (const m of METHODS) for (const key of Object.keys(acc[m])) { const v = res.metrics[m][key]; if (!Number.isNaN(v)) acc[m][key].push(v); }
+  }
+  const summary = {};
+  for (const m of METHODS) { summary[m] = {}; for (const key of Object.keys(acc[m])) summary[m][key] = avg(acc[m][key]); }
+  return { summary, example };
+}
+if (typeof module !== 'undefined') module.exports = { homie, runSimulation, makeWorld, CAMPUS_STARS, expStars, rawAverage, SRC };
+</script>
+
+<!-- ============ PAGE ============ -->
+<script>
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (x, d = 1) => Number.isFinite(x) ? x.toFixed(d) : '–';
+const tip = document.getElementById('tip');
+function showTip(e, html) { tip.innerHTML = html; tip.style.opacity = 1; tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; }
+function hideTip() { tip.style.opacity = 0; }
+function bindTips(root) {
+  root.querySelectorAll('[data-tip]').forEach(el => {
+    el.addEventListener('mousemove', e => showTip(e, el.getAttribute('data-tip')));
+    el.addEventListener('mouseleave', hideTip);
+  });
+}
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+// ---------------- playground ----------------
+const AGE_LABEL = d => d < 60 ? 'this month' : d < 500 ? '1 yr ago' : `${Math.round(d / 365)} yrs ago`;
+let pg = [];
+const mk = (stars, source, ageDays) => ({ stars, source, ageDays });
+const PRESETS = {
+  one: () => [mk(5, 'student', 10)],
+  solid: () => Array.from({ length: 40 }, (_, i) => mk([5, 4, 5, 4, 4, 5, 3, 5, 4, 5][i % 10], i % 3 ? 'verified' : 'student', 20 + i * 25)),
+  bomb: () => [...Array.from({ length: 20 }, (_, i) => mk([5, 4, 4, 5, 4][i % 5], i % 2 ? 'verified' : 'student', 40 + i * 45)),
+               ...Array.from({ length: 6 }, (_, i) => mk(1, 'student', 2 + i))],
+  better: () => [...Array.from({ length: 10 }, (_, i) => mk([1, 2, 2, 1, 3][i % 5], 'verified', 1000 + i * 30)),
+                 ...Array.from({ length: 6 }, (_, i) => mk([5, 4, 5, 4][i % 4], 'verified', 15 + i * 40))],
+  split: () => Array.from({ length: 14 }, (_, i) => mk(i % 2 ? 5 : 1, i % 3 ? 'verified' : 'student', 30 + i * 50)),
+  empty: () => [],
+};
+document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => { pg = PRESETS[b.dataset.preset](); renderPg(); }));
+document.getElementById('pg-stars').innerHTML = [1, 2, 3, 4, 5].map(s => `<button data-add="${s}">+ ${s}★</button>`).join(' ');
+document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
+  pg.push(mk(+b.dataset.add, document.getElementById('pg-src').value, +document.getElementById('pg-age').value));
+  renderPg();
+}));
+
+function starAxisX(s, x0, w) { return x0 + (s - 1) / 4 * w; }
+
+function renderPg() {
+  const r = homie(pg);
+  const raw = pg.length ? avg(pg.map(x => x.stars)) : NaN;
+  document.getElementById('pg-score').textContent = fmt(r.stars) + '★';
+  document.getElementById('pg-conf').textContent = r.confidence;
+  document.getElementById('pg-range').textContent = `Likely between ${fmt(r.lo)}★ and ${fmt(r.hi)}★`;
+  document.getElementById('pg-raw').textContent = pg.length ? fmt(raw, 2) + '★' : 'no reviews';
+  document.getElementById('pg-campus').textContent = fmt(CAMPUS_STARS, 2) + '★';
+  document.getElementById('pg-n').textContent = pg.length;
+
+  // score bar
+  const W = 420, x0 = 12, w = W - 24, H = 64;
+  const X = s => starAxisX(s, x0, w);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Score comparison on a 1 to 5 star axis">`;
+  for (let s = 1; s <= 5; s++) svg += `<line x1="${X(s)}" x2="${X(s)}" y1="14" y2="40" stroke="${css('--grid')}" stroke-width="1"/><text x="${X(s)}" y="58" text-anchor="middle">${s}★</text>`;
+  svg += `<line x1="${X(1)}" x2="${X(5)}" y1="27" y2="27" stroke="${css('--border')}" stroke-width="2"/>`;
+  svg += `<line x1="${X(CAMPUS_STARS)}" x2="${X(CAMPUS_STARS)}" y1="10" y2="44" stroke="${css('--neutral')}" stroke-width="2" stroke-dasharray="3 3" data-tip="Campus average ${fmt(CAMPUS_STARS, 2)}★"/>`;
+  svg += `<rect x="${X(r.lo)}" y="21" width="${Math.max(2, X(r.hi) - X(r.lo))}" height="12" rx="4" fill="${css('--s1-soft')}" data-tip="Likely range ${fmt(r.lo)}–${fmt(r.hi)}★"/>`;
+  svg += `<circle cx="${X(r.stars)}" cy="27" r="7" fill="${css('--s1')}" stroke="${css('--surface-1')}" stroke-width="2" data-tip="HOMIE score ${fmt(r.stars, 2)}★"/>`;
+  if (pg.length) svg += `<circle cx="${X(raw)}" cy="27" r="6" fill="${css('--s2')}" stroke="${css('--surface-1')}" stroke-width="2" data-tip="Plain average ${fmt(raw, 2)}★"/>`;
+  svg += `</svg>`;
+  const bar = document.getElementById('pg-bar'); bar.innerHTML = svg; bindTips(bar);
+
+  // belief chart: chance per 0.25-star band
+  const bands = 16, prior = new Array(bands).fill(0), postB = new Array(bands).fill(0);
+  GRID.forEach((t, g) => { const s = expStars(t); const b = Math.min(bands - 1, Math.max(0, Math.floor((s - 1) / 0.25))); prior[b] += PRIOR[g]; postB[b] += r.post[g]; });
+  const BW = 420, BH = 170, bx0 = 30, bw = BW - 40, by0 = 140, bh = 120;
+  const maxP = Math.max(...postB, ...prior, 0.05);
+  const step = bw / bands;
+  let bs = `<svg viewBox="0 0 ${BW} ${BH}" width="100%" role="img" aria-label="Probability of the true score in each quarter-star band">`;
+  [0.25, 0.5, 0.75, 1].forEach(f => { const y = by0 - f * bh; bs += `<line x1="${bx0}" x2="${bx0 + bw}" y1="${y}" y2="${y}" stroke="${css('--grid')}"/><text x="${bx0 - 4}" y="${y + 4}" text-anchor="end">${Math.round(f * maxP * 100)}%</text>`; });
+  postB.forEach((p, b) => {
+    const h = p / maxP * bh, x = bx0 + b * step + 1;
+    const lab = `${(1 + b * 0.25).toFixed(2)}–${(1.25 + b * 0.25).toFixed(2)}★: ${Math.round(p * 100)}% chance (before reviews: ${Math.round(prior[b] * 100)}%)`;
+    bs += `<rect x="${x}" y="${by0 - h}" width="${step - 2}" height="${Math.max(h, 0)}" rx="${Math.min(4, h / 2)}" fill="${css('--s1')}"/>`;
+    bs += `<rect x="${bx0 + b * step}" y="${by0 - bh}" width="${step}" height="${bh}" fill="transparent" data-tip="${lab}"/>`;
+  });
+  let path = '';
+  prior.forEach((p, b) => { const y = by0 - p / maxP * bh; path += `${b ? 'L' : 'M'}${bx0 + b * step},${y} L${bx0 + (b + 1) * step},${y} `; });
+  bs += `<path d="${path}" fill="none" stroke="${css('--neutral')}" stroke-width="2" stroke-dasharray="4 3" pointer-events="none"/>`;
+  bs += `<line x1="${bx0}" x2="${bx0 + bw}" y1="${by0}" y2="${by0}" stroke="${css('--border')}"/>`;
+  for (let s = 1; s <= 5; s++) bs += `<text x="${bx0 + (s - 1) * 4 * step}" y="${by0 + 18}" text-anchor="middle">${s}★</text>`;
+  bs += `</svg>`;
+  const bel = document.getElementById('pg-belief'); bel.innerHTML = bs; bindTips(bel);
+
+  // review table
+  const rows = pg.map((x, i) => ({ ...x, ...r.perReview[i] })).reverse();
+  document.getElementById('pg-table').innerHTML = `<tr><th>Stars</th><th>Who</th><th>When</th><th class="num">Counts as</th><th class="num">Looks off</th></tr>` +
+    (rows.length ? rows.map(x => `<tr><td>${'★'.repeat(x.stars)}</td><td>${SRC[x.source].label}</td><td>${AGE_LABEL(x.ageDays)}</td><td class="num">${Math.round(x.countsAs * 100)}%</td><td class="num">${x.looksOff > 0.5 ? '<span class="alert">⚑ ' + Math.round(x.looksOff * 100) + '%</span>' : Math.round(x.looksOff * 100) + '%'}</td></tr>`).join('')
+      : `<tr><td colspan="5">No reviews. The score is the campus average with low confidence.</td></tr>`);
+}
+
+// ---------------- decay chart ----------------
+(function () {
+  const W = 420, H = 120, x0 = 34, w = W - 50, y0 = 92, h = 74;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Review weight halves every two years">`;
+  [0.5, 1].forEach(f => { const y = y0 - f * h; s += `<line x1="${x0}" x2="${x0 + w}" y1="${y}" y2="${y}" stroke="${css('--grid')}"/><text x="${x0 - 4}" y="${y + 4}" text-anchor="end">${f * 100}%</text>`; });
+  let d = ''; for (let m = 0; m <= 72; m++) { const x = x0 + m / 72 * w, y = y0 - Math.pow(0.5, m * 30.4 / 730) * h; d += `${m ? 'L' : 'M'}${x},${y}`; }
+  s += `<path d="${d}" fill="none" stroke="${css('--s1')}" stroke-width="2"/>`;
+  [0, 2, 4, 6].forEach(yv => { const x = x0 + yv * 12 / 72 * w; s += `<text x="${x}" y="${y0 + 18}" text-anchor="middle">${yv === 0 ? 'now' : yv + ' yrs ago'}</text>`; });
+  [[0, 100], [24, 50], [48, 25]].forEach(([m, pct]) => { const x = x0 + m / 72 * w, y = y0 - pct / 100 * h; s += `<circle cx="${x}" cy="${y}" r="4" fill="${css('--s1')}" stroke="${css('--surface-1')}" stroke-width="2" data-tip="A review from ${m ? m / 12 + ' years ago' : 'today'} counts ${pct}%"/>`; });
+  s += `<line x1="${x0}" x2="${x0 + w}" y1="${y0}" y2="${y0}" stroke="${css('--border')}"/></svg>`;
+  const el = document.getElementById('decay-chart'); el.innerHTML = s; bindTips(el);
+})();
+
+// ---------------- topics & personal score ----------------
+// Simplified: each topic starts at the overall score (worth K reviews) and is pulled by mentions.
+const TOPICS = [
+  { key: 'safety', label: 'Safety', mentions: [4, 4, 3, 1, 1], serious: 2 },
+  { key: 'pests', label: 'Pests', mentions: [2, 1, 1, 2], serious: 0 },
+  { key: 'maintenance', label: 'Maintenance', mentions: [4, 3, 4, 5, 4, 2], serious: 0 },
+  { key: 'management', label: 'Management', mentions: [5, 4, 4, 5], serious: 0 },
+  { key: 'noise', label: 'Noise', mentions: [2, 3, 2, 2, 3], serious: 0 },
+  { key: 'internet', label: 'Internet', mentions: [5, 5, 4], serious: 0 },
+  { key: 'cost', label: 'Cost', mentions: [3, 2, 3, 3], serious: 0 },
+  { key: 'cleanliness', label: 'Cleanliness', mentions: [], serious: 0 },
+];
+const OVERALL = 3.8, K = 3;
+const prio = { safety: 3, pests: 2, maintenance: 1, management: 1, noise: 1, internet: 1, cost: 2, cleanliness: 1 };
+TOPICS.forEach(t => {
+  const n = t.mentions.length;
+  t.score = (K * OVERALL + t.mentions.reduce((a, b) => a + b, 0)) / (K + n);
+  t.half = 1.3 / Math.sqrt(K + n);
+});
+function renderTopics() {
+  const W = 260, x0 = 8, w = W - 16;
+  const X = s => x0 + (Math.min(5, Math.max(1, s)) - 1) / 4 * w;
+  document.getElementById('cats').innerHTML = TOPICS.map(t => {
+    const lo = t.score - t.half, hi = t.score + t.half;
+    const svg = `<svg viewBox="0 0 ${W} 20" width="100%" aria-label="${t.label} ${fmt(t.score)} stars"><line x1="${x0}" x2="${x0 + w}" y1="10" y2="10" stroke="${css('--grid')}" stroke-width="2"/><rect x="${X(lo)}" y="5" width="${X(hi) - X(lo)}" height="10" rx="4" fill="${css('--s1-soft')}"/><circle cx="${X(t.score)}" cy="10" r="5" fill="${css('--s1')}" stroke="${css('--surface-1')}" stroke-width="2"/></svg>`;
+    const note = t.serious ? `<span class="alert">⚠ ${t.serious} serious reports</span>` : t.mentions.length ? `${fmt(t.score)}★ · ${t.mentions.length} mentions` : `<span class="muted">no mentions: uses overall</span>`;
+    return `<div class="catrow" data-tip="${esc(t.label)}: ${fmt(t.score)}★ (likely ${fmt(lo)}–${fmt(Math.min(5, hi))}), from ${t.mentions.length} reviews that mention it"><span>${t.label}</span>${svg}<span style="font-size:13px">${note}</span></div>`;
+  }).join('');
+  bindTips(document.getElementById('cats'));
+  document.getElementById('prios').innerHTML = TOPICS.map(t => `<div class="catrow" style="grid-template-columns:110px 1fr 30px"><span>${t.label}</span><input class="slider" type="range" min="0" max="3" step="1" value="${prio[t.key]}" data-p="${t.key}" aria-label="Importance of ${t.label}"><span>${prio[t.key]}</span></div>`).join('');
+  document.querySelectorAll('[data-p]').forEach(s => s.addEventListener('input', () => { prio[s.dataset.p] = +s.value; renderTopics(); }));
+  const tot = TOPICS.reduce((a, t) => a + prio[t.key], 0);
+  const pers = tot ? TOPICS.reduce((a, t) => a + prio[t.key] * t.score, 0) / tot : OVERALL;
+  document.getElementById('overall-s').textContent = fmt(OVERALL) + '★';
+  document.getElementById('personal-s').textContent = fmt(pers) + '★';
+}
+
+// ---------------- roommates ----------------
+document.getElementById('rm-a').textContent = fmt(homie([mk(5, 'subleaser', 5)]).stars) + '★';
+document.getElementById('rm-b').textContent = fmt(homie([mk(5, 'subleaser', 40), mk(3, 'tenant', 5)]).stars) + '★';
+
+// ---------------- simulation UI ----------------
+const MCOL = { raw: '--s2', shrink: '--s3', homie: '--s1' };
+const MNAME = { raw: 'Plain average', shrink: 'Simple shrinkage', homie: 'HOMIE engine' };
+const PANELS = [
+  { key: 'rho', title: 'Ranking accuracy', sub: 'How well the order matches the hidden truth (100 = perfect)', f: v => v * 100, max: 100, better: 'higher', d: 0 },
+  { key: 'top10', title: 'Real top-10 found', sub: 'Of the truly best 10 buildings, how many make the method\'s top-10 list', f: v => v, max: 10, better: 'higher', d: 1 },
+  { key: 'fooled', title: 'Moved by fake reviews', sub: 'How many places an attacked building jumps or drops', f: v => v, max: null, better: 'lower', d: 1 },
+  { key: 'changedErr', title: 'Off on buildings that changed', sub: 'Ranking error (places) for buildings with new management', f: v => v, max: null, better: 'lower', d: 1 },
+];
+let lastExample = null, scatterMethod = 'homie';
+
+function renderResults(summary) {
+  const host = document.getElementById('sim-results');
+  host.innerHTML = PANELS.map(p => {
+    const vals = METHODS.map(m => p.f(summary[m][p.key]));
+    if (vals.every(v => !Number.isFinite(v))) return `<div class="card"><h3>${p.title}</h3><p class="muted">Turn on the matching option above to measure this.</p></div>`;
+    const max = p.max ?? Math.max(...vals.filter(Number.isFinite)) * 1.15;
+    const W = 400, rowH = 30, x0 = 120, w = W - x0 - 50;
+    let s = `<svg viewBox="0 0 ${W} ${METHODS.length * rowH + 6}" width="100%" role="img" aria-label="${p.title}">`;
+    METHODS.forEach((m, i) => {
+      const v = vals[i], y = 4 + i * rowH, bw = Number.isFinite(v) ? Math.max(2, v / max * w) : 0;
+      s += `<text x="${x0 - 8}" y="${y + 16}" text-anchor="end" style="fill:${css('--text-secondary')}">${MNAME[m]}</text>`;
+      s += `<rect x="${x0}" y="${y + 4}" width="${bw}" height="16" rx="4" fill="${css(MCOL[m])}" data-tip="${MNAME[m]}: ${fmt(v, p.d)}"/>`;
+      s += `<text x="${x0 + bw + 6}" y="${y + 16}" style="fill:${css('--text-primary')}; font-weight:600">${fmt(v, p.d)}</text>`;
+    });
+    s += `</svg>`;
+    return `<div class="card"><h3>${p.title}</h3><p class="muted" style="margin-bottom:6px">${p.sub}. <b>${p.better === 'higher' ? 'Higher' : 'Lower'} is better.</b></p>${s}</div>`;
+  }).join('');
+  bindTips(host);
+  document.getElementById('sim-table').innerHTML = `<table><tr><th>Measure</th>${METHODS.map(m => `<th class="num">${MNAME[m]}</th>`).join('')}</tr>` +
+    PANELS.map(p => `<tr><td>${p.title} (${p.better} is better)</td>${METHODS.map(m => `<td class="num">${fmt(p.f(summary[m][p.key]), p.d)}</td>`).join('')}</tr>`).join('') + `</table>`;
+}
+
+function renderScatter() {
+  if (!lastExample) return;
+  const { dirty, truth } = lastExample;
+  const tr = ranks(truth), er = ranks(dirty.est[scatterMethod]), N = truth.length;
+  const W = 640, H = 340, x0 = 50, y0 = 300, w = W - 70, h = 270;
+  const X = r => x0 + (N - r) / (N - 1) * w, Y = r => y0 - (N - r) / (N - 1) * h;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="True rank versus estimated rank">`;
+  s += `<line x1="${X(N)}" y1="${Y(N)}" x2="${X(1)}" y2="${Y(1)}" stroke="${css('--neutral')}" stroke-dasharray="4 4"/>`;
+  s += `<line x1="${x0}" x2="${x0 + w}" y1="${y0}" y2="${y0}" stroke="${css('--border')}"/><line x1="${x0}" x2="${x0}" y1="${y0}" y2="${y0 - h}" stroke="${css('--border')}"/>`;
+  s += `<text x="${x0 + w / 2}" y="${y0 + 30}" text-anchor="middle">True quality (worse → better)</text>`;
+  s += `<text x="16" y="${y0 - h / 2}" text-anchor="middle" transform="rotate(-90 16 ${y0 - h / 2})">Method's ranking (worse → better)</text>`;
+  s += `<text x="${X(1) - 4}" y="${Y(1) - 6}" text-anchor="end">perfect agreement</text>`;
+  const col = css(MCOL[scatterMethod]);
+  dirty.blds.forEach((b, i) => {
+    const cx = X(tr[i]), cy = Y(er[i]);
+    const label = `Truly #${tr[i]} of ${N}, ranked #${Math.round(er[i])} · ${b.reviews.length} real reviews${b.attack === 'boost' ? ' · got 8 fake 5★' : b.attack === 'bomb' ? ' · got 6 fake 1★' : ''}${b.changed ? ' · management changed' : ''}`;
+    if (b.attack) s += `<circle cx="${cx}" cy="${cy}" r="9" fill="none" stroke="${css('--text-primary')}" stroke-width="2"/>`;
+    s += `<circle cx="${cx}" cy="${cy}" r="5" fill="${col}" stroke="${css('--surface-1')}" stroke-width="2"/>`;
+    s += `<circle cx="${cx}" cy="${cy}" r="11" fill="transparent" data-tip="${esc(label)}"/>`;
+  });
+  s += `</svg>`;
+  const el = document.getElementById('scatter'); el.innerHTML = s; bindTips(el);
+  document.getElementById('scatter-legend').innerHTML = `<span><span class="sw" style="background:${col}"></span>${MNAME[scatterMethod]}: one dot per building</span><span>◯ ring = got fake reviews</span><span>- - - perfect agreement</span>`;
+}
+document.querySelectorAll('#scatter-toggle [data-m]').forEach(b => b.addEventListener('click', () => {
+  scatterMethod = b.dataset.m;
+  document.querySelectorAll('#scatter-toggle [data-m]').forEach(x => x.classList.toggle('on', x === b));
+  renderScatter();
+}));
+
+function run() {
+  const knobs = { fakes: document.getElementById('k-fakes').checked, changes: document.getElementById('k-changes').checked, volume: +document.getElementById('k-volume').value };
+  const worlds = +document.getElementById('k-worlds').value;
+  const status = document.getElementById('run-status');
+  status.textContent = 'Simulating…';
+  setTimeout(() => {
+    const t = performance.now();
+    const { summary, example } = runSimulation(knobs, worlds);
+    lastExample = example;
+    renderResults(summary); renderScatter();
+    status.textContent = `${worlds} markets × 60 buildings in ${((performance.now() - t) / 1000).toFixed(1)}s`;
+  }, 30);
+}
+document.getElementById('run').addEventListener('click', run);
+
+pg = PRESETS.one(); renderPg(); renderTopics(); run();
+</script>
+</body>
+</html>
