@@ -12,6 +12,12 @@ class FakeSMTP:
     def __init__(self, host, port, context=None, timeout=None):
         self.host, self.port = host, port
 
+    def ehlo(self):
+        pass
+
+    def starttls(self, context=None):
+        self.tls = True
+
     def __enter__(self):
         return self
 
@@ -33,6 +39,7 @@ def smtp(monkeypatch):
     monkeypatch.setattr(settings, "smtp_username", "homie.sender@gmail.com")
     monkeypatch.setattr(settings, "smtp_password", type(settings.secret_key)("abcd efgh ijkl mnop"))
     monkeypatch.setattr(smtplib, "SMTP_SSL", FakeSMTP)
+    monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
     FakeSMTP.sent = []
     FakeSMTP.fail_login = False
     return FakeSMTP
@@ -86,3 +93,15 @@ def test_non_usc_address_never_triggers_an_email(client, smtp):
     resp = client.post("/api/auth/request-code", json={"email": "someone@gmail.com"})
     assert resp.status_code == 403
     assert smtp.sent == []
+
+
+def test_falls_back_to_starttls_when_465_drops(client, smtp, monkeypatch):
+    class DroppingSSL(FakeSMTP):
+        def login(self, user, password):
+            raise smtplib.SMTPServerDisconnected("Connection unexpectedly closed")
+
+    monkeypatch.setattr(smtplib, "SMTP_SSL", DroppingSSL)
+    resp = client.post("/api/auth/request-code", json={"email": "fallback@usc.edu"})
+    assert resp.status_code == 200
+    conn, msg = smtp.sent[0]
+    assert conn.port == 587 and conn.tls is True

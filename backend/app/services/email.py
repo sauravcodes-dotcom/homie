@@ -77,29 +77,40 @@ def _send_smtp(to: str, subject: str, text: str, html: str, settings: Settings) 
     msg.add_alternative(html, subtype="html")
 
     password = settings.smtp_password.get_secret_value().replace(" ", "")
+    # Gmail sometimes drops implicit-TLS connections (465) from cloud hosts, so
+    # fall back to STARTTLS on 587 when the first attempt cannot connect.
+    ports = [settings.smtp_port] + ([587] if settings.smtp_port == 465 else [])
+    last_exc: Exception | None = None
+    for port in ports:
+        try:
+            _deliver(settings.smtp_host, port, settings.smtp_username, password, msg)
+            return
+        except smtplib.SMTPAuthenticationError as exc:
+            logger.error("SMTP login rejected for the configured sender (port %s)", port)
+            raise EmailDeliveryError(
+                "The sign-in email could not be sent: the email account login was rejected."
+            ) from exc
+        except (smtplib.SMTPException, OSError) as exc:
+            logger.warning("SMTP via %s:%s failed: %r", settings.smtp_host, port, exc)
+            last_exc = exc
+    raise EmailDeliveryError(
+        "Could not send the sign-in email. Try again in a minute."
+    ) from last_exc
+
+
+def _deliver(host: str, port: int, username: str, password: str, msg: EmailMessage) -> None:
     context = ssl.create_default_context()
-    try:
-        if settings.smtp_port == 465:
-            with smtplib.SMTP_SSL(
-                settings.smtp_host, settings.smtp_port, context=context, timeout=15
-            ) as smtp:
-                smtp.login(settings.smtp_username, password)
-                smtp.send_message(msg)
-        else:
-            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as smtp:
-                smtp.starttls(context=context)
-                smtp.login(settings.smtp_username, password)
-                smtp.send_message(msg)
-    except smtplib.SMTPAuthenticationError as exc:
-        logger.error("SMTP login rejected for the configured sender")
-        raise EmailDeliveryError(
-            "The sign-in email could not be sent: the email account login was rejected."
-        ) from exc
-    except (smtplib.SMTPException, OSError) as exc:
-        logger.warning("Sending login code over SMTP failed: %s", exc)
-        raise EmailDeliveryError(
-            "Could not send the sign-in email. Try again in a minute."
-        ) from exc
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, context=context, timeout=15) as smtp:
+            smtp.login(username, password)
+            smtp.send_message(msg)
+    else:
+        with smtplib.SMTP(host, port, timeout=15) as smtp:
+            smtp.ehlo()
+            smtp.starttls(context=context)
+            smtp.ehlo()
+            smtp.login(username, password)
+            smtp.send_message(msg)
 
 
 def _send_resend(to: str, subject: str, text: str, html: str, settings: Settings) -> None:
