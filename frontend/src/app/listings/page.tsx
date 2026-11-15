@@ -20,7 +20,7 @@ function Browse() {
   const params0 = useSearchParams()
   const building = params0.get('building')
   const typeParam = params0.get('type')
-  const [q, setQ] = useState('')
+  const [q, setQ] = useState(() => params0.get('q') ?? '')
   const [type, setType] = useState<ListingType | ''>(
     TYPES.includes(typeParam as ListingType) ? (typeParam as ListingType) : '',
   )

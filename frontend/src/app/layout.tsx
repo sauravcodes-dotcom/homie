@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Bricolage_Grotesque, Instrument_Sans } from 'next/font/google'
+import { CommandPalette } from '@/components/CommandPalette'
 import { CursorGlow } from '@/components/CursorGlow'
 import { Footer } from '@/components/Footer'
 import { MotionProvider } from '@/components/MotionProvider'
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <MotionProvider>
           <CursorGlow />
+          <CommandPalette />
           <div className="relative z-10 flex min-h-dvh flex-col">
             <Nav />
             <main className="flex-1">{children}</main>

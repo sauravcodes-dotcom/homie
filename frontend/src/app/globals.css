@@ -142,6 +142,19 @@
 }
 
 @layer components {
+  .kbd {
+    display: inline-grid;
+    min-width: 1.6em;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 6px;
+    background: var(--surface-2);
+    padding: 0.05em 0.4em;
+    font: 600 0.72rem/1.5 var(--font-instrument), system-ui, sans-serif;
+    color: var(--ink-soft);
+  }
+
   .btn {
     display: inline-flex;
     align-items: center;
@@ -355,10 +368,48 @@
     opacity: 0.45;
   }
 }
+/* A light sweep with a warm gold edge runs across placeholders while they load. */
+@keyframes shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
 .skeleton {
   border-radius: 16px;
-  background: var(--surface-2);
-  animation: skeleton 1.4s ease-in-out infinite;
+  background:
+    linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--gold) 9%, transparent) 45%, color-mix(in srgb, var(--ink) 7%, transparent) 50%, transparent 65%) 0 0 / 250% 100% no-repeat,
+    var(--surface-2);
+  animation: shimmer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: skeleton 1.4s ease-in-out infinite;
+  }
+}
+
+
+
+/* Listing card photo morphing into the detail hero (React <ViewTransition share="morph">). */
+::view-transition-group(.morph) {
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+::view-transition-image-pair(.morph) {
+  animation-name: morph-blur;
+  animation-duration: 520ms;
+}
+::view-transition-old(.morph),
+::view-transition-new(.morph) {
+  height: 100%;
+  object-fit: cover;
+}
+@keyframes morph-blur {
+  35% {
+    filter: blur(2px) saturate(1.2);
+  }
 }
 
 .leaflet-container {

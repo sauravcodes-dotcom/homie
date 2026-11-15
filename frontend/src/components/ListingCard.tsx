@@ -1,7 +1,11 @@
+'use client'
+
 import Link from 'next/link'
+import { ViewTransition } from 'react'
 import { Tilt } from './Tilt'
 import type { Listing, MatchResult } from '@/lib/api'
 import { dateRange, TYPE_LABEL, usd } from '@/lib/format'
+import { photoName, rememberListing } from '@/lib/peek'
 
 /** Photo, or a generated cardinal-and-gold tile when the lister added none. */
 export function ListingPhoto({ listing, className = '' }: { listing: Pick<Listing, 'id' | 'photos' | 'title'>; className?: string }) {
@@ -30,9 +34,17 @@ export function ListingCard({ listing, match }: { listing: Listing; match?: Matc
   const risky = listing.risk && listing.risk.level !== 'low'
   return (
     <Tilt className="h-full">
-    <Link href={`/listings/${listing.id}`} className="card card-hover group block h-full overflow-hidden">
+    <Link
+      href={`/listings/${listing.id}`}
+      onClick={() => rememberListing(listing)}
+      className="card card-hover group block h-full overflow-hidden"
+    >
       <div className="relative aspect-[4/3] overflow-hidden">
-        <ListingPhoto listing={listing} className="size-full transition-transform duration-500 group-hover:scale-105" />
+        <ViewTransition name={photoName(listing.id)} share="morph" default="none">
+          <div className="size-full overflow-hidden">
+            <ListingPhoto listing={listing} className="size-full transition-transform duration-500 group-hover:scale-105" />
+          </div>
+        </ViewTransition>
         <span className="chip absolute top-3 left-3 border-transparent bg-black/60 text-white backdrop-blur">
           {TYPE_LABEL[listing.listing_type]}
         </span>

@@ -1,12 +1,13 @@
 'use client'
 
-import { motion, useMotionValueEvent, useScroll, useSpring } from 'motion/react'
+import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring } from 'motion/react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { get } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useInterval } from '@/lib/hooks'
+import { openPalette } from './CommandPalette'
 import { ThemeToggle } from './ThemeToggle'
 
 const LINKS = [
@@ -75,9 +76,17 @@ export function Nav() {
               href={l.href}
               aria-current={active(l.href) ? 'page' : undefined}
               className={`relative rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${
-                active(l.href) ? 'bg-surface-2 text-accent' : 'text-ink-soft hover:text-ink'
+                active(l.href) ? 'text-accent' : 'text-ink-soft hover:text-ink'
               }`}
             >
+              {active(l.href) && (
+                <motion.span
+                  layoutId="nav-pill"
+                  className="absolute inset-0 -z-10 rounded-full bg-surface-2"
+                  transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                  aria-hidden
+                />
+              )}
               {l.label}
               {l.href === '/messages' && unread > 0 && (
                 <span className="ml-1.5 rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-bold text-[#1d0808]">
@@ -88,6 +97,20 @@ export function Nav() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={openPalette}
+            className="group flex h-9 items-center gap-2 rounded-full border border-line px-3 text-sm text-ink-soft transition-colors hover:border-gold hover:text-ink"
+            aria-label="Search HOMIE"
+            aria-keyshortcuts="Meta+K Control+K"
+          >
+            <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <span className="hidden xl:inline">Search</span>
+            <kbd className="kbd hidden xl:inline-grid">⌘K</kbd>
+          </button>
           <ThemeToggle />
           {!loading &&
             (user ? (
@@ -124,8 +147,15 @@ export function Nav() {
           </button>
         </div>
       </div>
+      <AnimatePresence initial={false}>
       {open && (
-        <nav className="shell grid gap-1 pb-4 lg:hidden" aria-label="Mobile">
+        <motion.nav
+          className="shell grid gap-1 overflow-hidden lg:hidden"
+          aria-label="Mobile"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1, transition: { height: { type: 'spring', stiffness: 380, damping: 36 } } }}
+          exit={{ height: 0, opacity: 0, transition: { duration: 0.22 } }}
+        >
           {links.map((l) => (
             <Link
               key={l.href}
@@ -163,8 +193,10 @@ export function Nav() {
               </button>
             </>
           )}
-        </nav>
+          <span className="h-3" aria-hidden />
+        </motion.nav>
       )}
+      </AnimatePresence>
     </motion.header>
   )
 }

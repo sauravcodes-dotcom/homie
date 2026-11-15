@@ -2,16 +2,31 @@
 
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, ViewTransition } from 'react'
 import { BenchmarkPanel, Empty, ErrorNote, RiskPanel, VerifiedBadge } from '@/components/Bits'
 import { ListingPhoto } from '@/components/ListingCard'
 import { MapView } from '@/components/MapView'
 import { RoommateNotes } from '@/components/RoommateNotes'
 import { FactorBars, ScoreRing } from '@/components/Match'
-import { del, post, type Conversation, type Lifestyle, type ListingDetail } from '@/lib/api'
+import { del, post, type Conversation, type Lifestyle, type Listing, type ListingDetail } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { dateRange, TYPE_LABEL, usd } from '@/lib/format'
 import { useApi } from '@/lib/hooks'
+import { peekListing, photoName } from '@/lib/peek'
+
+/** The hero photo. Shares a view transition name with the listing's card, so it morphs in. */
+function HeroPhoto({ listing, photo = 0, children }: { listing: Pick<Listing, 'id' | 'photos' | 'title'>; photo?: number; children?: React.ReactNode }) {
+  return (
+    <div className="relative aspect-[16/10] overflow-hidden rounded-3xl border border-line">
+      <ViewTransition name={photoName(listing.id)} share="morph" default="none">
+        <div className="size-full">
+          <ListingPhoto listing={{ ...listing, photos: listing.photos.slice(photo) }} className="size-full" />
+        </div>
+      </ViewTransition>
+      {children}
+    </div>
+  )
+}
 
 function lifestyleChips(l: Lifestyle) {
   return [
@@ -49,6 +64,26 @@ export default function ListingPage() {
     )
   }
   if (!listing) {
+    const peek = peekListing(Number(id))
+    if (peek && !error) {
+      // Came from a card: show what the card already knew while the full listing loads.
+      return (
+        <div className="shell grid gap-8 py-10 lg:grid-cols-[1.5fr_1fr]">
+          <div className="min-w-0">
+            <HeroPhoto listing={peek} />
+            <h1 className="display mt-7 text-[clamp(2.2rem,5vw,3.75rem)] font-extrabold">{peek.title}</h1>
+            <p className="mt-3 text-lg text-ink-soft">
+              {[peek.neighborhood, dateRange(peek.available_from, peek.available_to)].filter(Boolean).join(' · ')}
+            </p>
+            <div className="skeleton mt-8 h-40" />
+          </div>
+          <div className="grid content-start gap-4">
+            <div className="skeleton h-56" />
+            <div className="skeleton h-40" />
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="shell py-12">
         <ErrorNote message={error} />
@@ -98,8 +133,7 @@ export default function ListingPage() {
   return (
     <div className="shell grid gap-8 py-10 lg:grid-cols-[1.5fr_1fr]">
       <div className="min-w-0">
-        <div className="relative aspect-[16/10] overflow-hidden rounded-3xl border border-line">
-          <ListingPhoto listing={{ ...listing, photos: listing.photos.slice(photo) }} className="size-full" />
+        <HeroPhoto listing={listing} photo={photo}>
           <span className="absolute top-4 left-4 flex gap-2">
             <span className="chip border-transparent bg-black/60 text-white backdrop-blur">
               {TYPE_LABEL[listing.listing_type]}
@@ -107,7 +141,7 @@ export default function ListingPage() {
             {listing.is_demo && <span className="chip chip-gold bg-black/60 backdrop-blur">Demo posting</span>}
             {!listing.is_active && <span className="chip chip-warn bg-black/60 backdrop-blur">No longer available</span>}
           </span>
-        </div>
+        </HeroPhoto>
         {listing.photos.length > 1 && (
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
             {listing.photos.map((src, i) => (
