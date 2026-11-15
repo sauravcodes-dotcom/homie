@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     database_url_override: str | None = Field(default=None, alias="DATABASE_URL")
     vercel: bool = False
     seed_demo_data: bool = True
+    demo_listing_count: int = Field(default=3000, ge=0, le=20000)
 
     # Auth. Only addresses at this exact domain may sign in.
     allowed_email_domain: str = "usc.edu"

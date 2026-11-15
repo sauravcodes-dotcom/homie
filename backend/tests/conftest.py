@@ -7,6 +7,7 @@ _tmp = tempfile.mkdtemp(prefix="homie-test-")
 _db_file = os.path.join(_tmp, "test.db")
 os.environ["DATABASE_URL"] = f"sqlite:///{_db_file}"
 os.environ.setdefault("ENVIRONMENT", "test")
+os.environ["DEMO_LISTING_COUNT"] = "200"
 os.environ["LLM_PROVIDER"] = "mock"
 os.environ["EMBEDDING_PROVIDER"] = "hashing"
 os.environ["EXTERNAL_REVIEWS_PROVIDER"] = "none"

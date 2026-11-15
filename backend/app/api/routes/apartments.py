@@ -149,7 +149,14 @@ def search(
                 func.lower(Apartment.neighborhood).like(like),
             )
         )
-    return _cards(db, list(db.scalars(stmt.order_by(Apartment.name).limit(limit)).all()))
+    review_count = (
+        select(func.count())
+        .where(Review.apartment_id == Apartment.id)
+        .correlate(Apartment)
+        .scalar_subquery()
+    )
+    rows = db.scalars(stmt.order_by(review_count.desc(), Apartment.name).limit(limit)).all()
+    return _cards(db, list(rows))
 
 
 @router.post("/apartments", response_model=ApartmentCard, status_code=201)

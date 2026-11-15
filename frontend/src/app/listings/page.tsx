@@ -2,41 +2,72 @@
 
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Suspense, useDeferredValue, useState } from 'react'
+import { Suspense, useDeferredValue, useEffect, useState } from 'react'
 import { Empty, ErrorNote, PageHeader } from '@/components/Bits'
 import { ListingCard } from '@/components/ListingCard'
 import { Reveal } from '@/components/Reveal'
-import { query, type Listing, type ListingType } from '@/lib/api'
+import { get, query, type Listing, type ListingPage, type ListingType } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { TYPE_LABEL, usd } from '@/lib/format'
 import { useApi } from '@/lib/hooks'
 
 const TYPES = Object.keys(TYPE_LABEL) as ListingType[]
 
+const PAGE_SIZE = 24
+
 function Browse() {
   const { user } = useAuth()
   const building = useSearchParams().get('building')
   const [q, setQ] = useState('')
   const [type, setType] = useState<ListingType | ''>('')
-  const [maxRent, setMaxRent] = useState(3500)
+  const [maxRent, setMaxRent] = useState(4000)
   const [neighborhood, setNeighborhood] = useState('')
-  const [moveInBy, setMoveInBy] = useState('')
+  const [availableBy, setAvailableBy] = useState('')
   const [sort, setSort] = useState('newest')
 
   const params = useDeferredValue(
     query({
       q,
       listing_type: type,
-      max_rent: maxRent < 3500 ? maxRent : null,
+      max_rent: maxRent < 4000 ? maxRent : null,
       neighborhood,
-      move_in_by: moveInBy,
+      available_by: availableBy,
       apartment_id: building,
       sort,
-      limit: 60,
+      limit: PAGE_SIZE,
     }),
   )
-  const { data, error, loading } = useApi<Listing[]>(`/listings${params}`)
+  const first = useApi<ListingPage>(`/listings${params}`)
   const hoods = useApi<string[]>('/listings/neighborhoods')
+
+  // Pages after the first are appended; any filter change starts over.
+  const [extra, setExtra] = useState<Listing[]>([])
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [moreError, setMoreError] = useState<string | null>(null)
+  useEffect(() => {
+    setExtra([])
+    setMoreError(null)
+  }, [params])
+
+  const data = first.data ? [...first.data.items, ...extra] : null
+  const total = first.data?.total ?? 0
+  const error = first.error ?? moreError
+  const loading = first.loading
+
+  const loadMore = async () => {
+    if (!data) return
+    setLoadingMore(true)
+    setMoreError(null)
+    try {
+      const sep = params ? '&' : '?'
+      const page = await get<ListingPage>(`/listings${params}${sep}offset=${data.length}`)
+      setExtra((cur) => [...cur, ...page.items])
+    } catch (e) {
+      setMoreError(e instanceof Error ? e.message : 'Could not load more')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   return (
     <>
@@ -65,20 +96,21 @@ function Browse() {
           </div>
           <div>
             <label className="label" htmlFor="by">Available by</label>
-            <input id="by" type="date" className="input" value={moveInBy} onChange={(e) => setMoveInBy(e.target.value)} />
+            <input id="by" type="date" className="input" value={availableBy} onChange={(e) => setAvailableBy(e.target.value)} />
           </div>
           <div>
             <label className="label" htmlFor="rent">
-              Max rent: <span className="text-ink">{maxRent >= 3500 ? 'Any' : usd(maxRent)}</span>
+              Max rent: <span className="text-ink">{maxRent >= 4000 ? 'Any' : usd(maxRent)}</span>
             </label>
-            <input id="rent" type="range" min={500} max={3500} step={50} className="mt-2.5 w-full" value={maxRent} onChange={(e) => setMaxRent(Number(e.target.value))} />
+            <input id="rent" type="range" min={500} max={4000} step={50} className="mt-2.5 w-full" value={maxRent} onChange={(e) => setMaxRent(Number(e.target.value))} />
           </div>
           <div>
             <label className="label" htmlFor="sort">Sort</label>
             <select id="sort" className="input" value={sort} onChange={(e) => setSort(e.target.value)}>
               <option value="newest">Newest</option>
-              <option value="rent_asc">Rent: low to high</option>
-              <option value="rent_desc">Rent: high to low</option>
+              <option value="price_asc">Rent: low to high</option>
+              <option value="price_desc">Rent: high to low</option>
+              <option value="soonest">Available soonest</option>
             </select>
           </div>
           <div className="flex flex-wrap gap-2 lg:col-span-5">
@@ -93,7 +125,7 @@ function Browse() {
 
         <div className="mt-4"><ErrorNote message={error} /></div>
         <p className="mt-6 text-sm text-ink-soft" aria-live="polite">
-          {data ? `${data.length} listing${data.length === 1 ? '' : 's'}` : loading ? 'Loading…' : ''}
+          {data ? `Showing ${data.length.toLocaleString()} of ${total.toLocaleString()} listing${total === 1 ? '' : 's'}` : loading ? 'Loading…' : ''}
         </p>
 
         {data && data.length === 0 ? (
@@ -111,6 +143,13 @@ function Browse() {
                 <ListingCard listing={l} />
               </Reveal>
             ))}
+          </div>
+        )}
+        {data && data.length < total && (
+          <div className="mt-10 text-center">
+            <button type="button" className="btn btn-ghost px-8" disabled={loadingMore} onClick={loadMore}>
+              {loadingMore ? 'Loading…' : 'Load more'}
+            </button>
           </div>
         )}
       </div>

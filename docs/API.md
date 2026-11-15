@@ -44,14 +44,14 @@ Codes and session tokens are stored only as hashes.
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/api/listings` | All listings with a roommate feedback summary (`count`, `average_rating`, `top_tags`). |
+| GET | `/api/listings` | `{ total, items }`. Query: `q` (street, building, unit), `listing_type`, `neighborhood`, `min_rent`, `max_rent`, `available_by`, `sort` (`newest`, `price_asc`, `price_desc`, `soonest`), `limit` (max 100), `offset`. Items include a roommate feedback summary. |
 | GET | `/api/listings/{id}` | Listing plus every roommate note. |
 | POST | `/api/listings` | Signed in. Creates a listing; the building is matched or created by name. |
 | POST | `/api/listings/{id}/roommate-feedback` | Signed in **and** the listing's owner (the student subleasing). Others get `403`. Body: `{ rating: 1-5, tags: [...], comment }`. |
 
 Allowed tags: `friendly, clean, quiet, social, respectful, studious, pays on time, shares chores`.
 
-A demo listing is seeded on startup: *Private room in unit 3157 at Lorenzo* (The Residences at Lorenzo, 325 W Adams Blvd) with the roommate note "The roommates are very cool."
+About 3,000 demo listings are generated on startup (`DEMO_LISTING_COUNT`, deterministic, real street names near USC with invented numbers, rents and people; owners use the reserved `homie-demo.invalid` domain). Also seeded: *Private room in unit 3157 at Lorenzo* (The Residences at Lorenzo, 325 W Adams Blvd) with the roommate note "The roommates are very cool."
 
 ## POST /api/matching/score
 
@@ -96,6 +96,16 @@ Response:
 ```
 
 Lifestyle fields (all optional): `sleep_schedule` (`early | flexible | late`), `cleanliness`, `noise_tolerance`, `guests_frequency` (1 to 5), `smoking`, `drinking`, `pets` (bool), `diet` (`veg | non_veg`).
+
+## POST /api/matching/listings
+
+Scores **every posted listing** for one seeker and returns the best matches with reasons.
+
+```json
+{ "seeker": { ...SeekerCriteria }, "listing_types": ["sublease", "room"], "limit": 20 }
+```
+
+Response: `{ "scanned": 3001, "results": [ { "listing": Listing, "match": MatchResult } ] }`. An empty `listing_types` means all types. Scoring ~3,000 listings takes about 150 ms.
 
 ## POST /api/matching/rank
 
@@ -154,7 +164,7 @@ All of these need `Authorization: Bearer <token>` unless marked public.
 | Method and path | Purpose |
 | --- | --- |
 | `PATCH /api/auth/me` | Set the display name. |
-| `GET /api/listings` (public) | Browse. Filters: `q`, `listing_type`, `min_rent`, `max_rent`, `neighborhood`, `move_in_by`, `apartment_id`, `sort`. |
+| `GET /api/listings` (public) | Search active listings; returns `{ total, items }`. Filters: `q`, `listing_type`, `neighborhood`, `min_rent`, `max_rent`, `available_by`, `apartment_id`, `sort`, `limit`, `offset`. |
 | `PUT /api/listings/{id}`, `DELETE /api/listings/{id}` | Edit or delete your own listing. |
 | `POST /api/uploads/photo` | Upload a listing photo (JPEG, PNG, WebP). |
 | `POST /api/ai/listing-draft` | Rough notes to title and description. |

@@ -79,3 +79,11 @@ class RankRequest(BaseModel):
     seeker: SeekerCriteria
     listings: list[ListingCriteria] = Field(min_length=1, max_length=200)
     limit: int = Field(default=10, ge=1, le=50)
+
+
+class ListingMatchRequest(BaseModel):
+    seeker: SeekerCriteria
+    listing_types: list[Literal["sublease", "lease_takeover", "room", "roommate_replacement"]] = (
+        Field(default_factory=list, description="Empty means all types")
+    )
+    limit: int = Field(default=20, ge=1, le=50)

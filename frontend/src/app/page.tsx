@@ -85,9 +85,14 @@ export default function Home() {
           <p className="mt-4 max-w-lg text-lg leading-relaxed text-ink-soft">
             Take the two-minute lifestyle quiz and HOMIE ranks every open room for you the same way.
           </p>
-          <Link href="/onboarding" className="btn btn-cardinal mt-8">
-            Take the quiz
-          </Link>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/match" className="btn btn-cardinal">
+              Find my match
+            </Link>
+            <Link href="/onboarding" className="btn btn-ghost">
+              Take the quiz
+            </Link>
+          </div>
         </Reveal>
         <Reveal delay={0.15}>
           <MatchDemo />

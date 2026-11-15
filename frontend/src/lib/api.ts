@@ -251,6 +251,8 @@ export type ListingInput = {
   photos: string[]
 }
 export type FeedItem = { listing: Listing; match: MatchResult }
+export type ListingPage = { total: number; items: Listing[] }
+export type ListingMatchResponse = { scanned: number; results: FeedItem[] }
 
 export type Profile = {
   budget_max: number

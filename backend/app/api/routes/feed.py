@@ -24,7 +24,8 @@ from app.services.matching import score_match, score_roommates
 
 router = APIRouter(tags=["feed"])
 
-MAX_CANDIDATES = 400
+# Scoring is cheap (a few thousand listings in well under a second).
+MAX_CANDIDATES = 10_000
 
 
 def _profile(db: Session, user: User) -> SeekerProfile:

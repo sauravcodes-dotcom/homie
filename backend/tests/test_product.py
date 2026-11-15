@@ -60,9 +60,12 @@ def test_listing_crud_filters_and_ownership(login):
     assert other.delete(f"/api/listings/{unnamed['id']}").status_code == 204
     assert a["travel"]["walk_minutes"] > 0
 
-    cheap = other.get("/api/listings", params={"max_rent": 1500}).json()
+    cheap = other.get("/api/listings", params={"max_rent": 1500}).json()["items"]
     assert [x["title"] for x in cheap] == ["Sunny room on Ellendale"]
-    assert other.get("/api/listings", params={"q": "studio"}).json()[0]["monthly_rent"] == 2100
+    assert (
+        other.get("/api/listings", params={"q": "studio"}).json()["items"][0]["monthly_rent"]
+        == 2100
+    )
 
     assert (
         other.put(f"/api/listings/{a['id']}", json=listing() | {"is_active": False}).status_code
@@ -73,7 +76,7 @@ def test_listing_crud_filters_and_ownership(login):
         owner.put(f"/api/listings/{a['id']}", json=listing() | {"is_active": False}).status_code
         == 200
     )
-    assert len(other.get("/api/listings").json()) == 1
+    assert other.get("/api/listings").json()["total"] == 1
 
 
 def test_photo_upload_checks_file_type(login):

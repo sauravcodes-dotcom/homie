@@ -18,6 +18,7 @@ from app.schemas.listing import (
     ListingCreate,
     ListingDetail,
     ListingOut,
+    ListingPage,
     ListingUpdate,
     MapPoint,
     RentBenchmark,
@@ -112,51 +113,63 @@ def _apply(db: Session, row: Listing, data: ListingCreate, embedder: EmbeddingPr
     ).model_dump()
 
 
-@router.get("/listings", response_model=list[ListingOut])
-def browse(
+SORTS = {
+    "newest": (Listing.created_at.desc(), Listing.id.desc()),
+    "price_asc": (Listing.monthly_rent.asc(), Listing.id.asc()),
+    "price_desc": (Listing.monthly_rent.desc(), Listing.id.desc()),
+    "soonest": (Listing.available_from.asc(), Listing.id.asc()),
+}
+
+
+@router.get("/listings", response_model=ListingPage)
+def search(
     q: str | None = Query(default=None, max_length=100),
     listing_type: ListingType | None = None,
+    neighborhood: str | None = Query(default=None, max_length=120),
     min_rent: int | None = Query(default=None, ge=0),
     max_rent: int | None = Query(default=None, ge=0),
-    neighborhood: str | None = Query(default=None, max_length=120),
-    move_in_by: date | None = None,
+    available_by: date | None = None,
     apartment_id: int | None = None,
-    sort: Literal["newest", "rent_asc", "rent_desc"] = "newest",
-    limit: int = Query(default=30, ge=1, le=100),
+    sort: Literal["newest", "price_asc", "price_desc", "soonest"] = "newest",
+    limit: int = Query(default=24, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     viewer: User | None = Depends(optional_user),
-) -> list[ListingOut]:
-    """Browse active listings with filters."""
-    stmt = select(Listing).where(Listing.is_active.is_(True))
+) -> ListingPage:
+    """Search active listings. Returns the total match count plus one page."""
+    stmt = (
+        select(Listing)
+        .outerjoin(Apartment, Apartment.id == Listing.apartment_id)
+        .where(Listing.is_active.is_(True))
+    )
     if q:
         like = f"%{q.strip().lower()}%"
         stmt = stmt.where(
             or_(
                 func.lower(Listing.title).like(like),
                 func.lower(Listing.description).like(like),
-                func.lower(Listing.neighborhood).like(like),
+                func.lower(func.coalesce(Listing.neighborhood, "")).like(like),
+                func.lower(func.coalesce(Listing.unit, "")).like(like),
+                func.lower(func.coalesce(Apartment.name, "")).like(like),
+                func.lower(func.coalesce(Apartment.address, "")).like(like),
             )
         )
     if listing_type:
         stmt = stmt.where(Listing.listing_type == listing_type)
+    if neighborhood:
+        stmt = stmt.where(func.lower(Listing.neighborhood) == neighborhood.strip().lower())
     if min_rent is not None:
         stmt = stmt.where(Listing.monthly_rent >= min_rent)
     if max_rent is not None:
         stmt = stmt.where(Listing.monthly_rent <= max_rent)
-    if neighborhood:
-        stmt = stmt.where(func.lower(Listing.neighborhood) == neighborhood.strip().lower())
-    if move_in_by:
-        stmt = stmt.where(Listing.available_from <= move_in_by)
+    if available_by is not None:
+        stmt = stmt.where(Listing.available_from <= available_by)
     if apartment_id is not None:
         stmt = stmt.where(Listing.apartment_id == apartment_id)
-    order = {
-        "newest": Listing.id.desc(),
-        "rent_asc": Listing.monthly_rent.asc(),
-        "rent_desc": Listing.monthly_rent.desc(),
-    }[sort]
-    rows = db.scalars(stmt.order_by(order).limit(limit).offset(offset)).all()
-    return listings_out(db, list(rows), viewer)
+
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    rows = db.scalars(stmt.order_by(*SORTS[sort]).limit(limit).offset(offset)).all()
+    return ListingPage(total=total, items=listings_out(db, list(rows), viewer))
 
 
 @router.get("/listings/neighborhoods", response_model=list[str])

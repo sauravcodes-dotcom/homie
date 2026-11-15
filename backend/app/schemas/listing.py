@@ -225,3 +225,26 @@ class MapPoint(BaseModel):
     neighborhood: str | None
     travel: TravelEstimate
     photo: str | None = None
+
+
+class ListingPage(BaseModel):
+    total: int
+    items: list[ListingOut]
+
+
+class ListingMatch(BaseModel):
+    listing: ListingOut
+    match: MatchResult
+
+
+class ListingMatchResponse(BaseModel):
+    scanned: int
+    results: list[ListingMatch]
+
+
+NEIGHBORHOODS = (
+    "University Park",
+    "North University Park",
+    "Figueroa Corridor",
+    "Exposition Park",
+)

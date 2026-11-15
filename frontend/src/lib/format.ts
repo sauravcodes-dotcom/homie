@@ -48,6 +48,7 @@ export const FACTOR_LABEL: Record<string, string> = {
 export const NEIGHBORHOODS = [
   'University Park',
   'North University Park',
+  'Figueroa Corridor',
   'Exposition Park',
   'West Adams',
   'Jefferson Park',
