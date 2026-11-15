@@ -2,33 +2,21 @@
 
 import Link from 'next/link'
 import { ViewTransition } from 'react'
+import { RoomArt } from './RoomArt'
 import { Tilt } from './Tilt'
 import { FairPriceBadge } from './Bits'
 import type { Listing, MatchResult } from '@/lib/api'
 import { dateRange, TYPE_LABEL, usd } from '@/lib/format'
 import { photoName, rememberListing } from '@/lib/peek'
 
-/** Photo, or a generated cardinal-and-gold tile when the lister added none. */
+/** Photo, or a generated illustration of the room when the lister added none. */
 export function ListingPhoto({ listing, className = '' }: { listing: Pick<Listing, 'id' | 'photos' | 'title'>; className?: string }) {
   if (listing.photos[0]) {
     // Photos are user uploads served by the API, so next/image optimisation is not set up for them.
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={listing.photos[0]} alt="" className={`object-cover ${className}`} loading="lazy" />
   }
-  const angle = (listing.id * 47) % 360
-  return (
-    <div
-      className={`grid place-items-center ${className}`}
-      style={{
-        background: `linear-gradient(${angle}deg, #990000, #4d0000 55%, #b38f00 140%)`,
-      }}
-      aria-hidden
-    >
-      <svg viewBox="0 0 24 24" className="size-14 opacity-40">
-        <path d="M3 12 12 3.5 21 12v8a1.5 1.5 0 0 1-1.5 1.5H15V15H9v6.5H4.5A1.5 1.5 0 0 1 3 20z" fill="#FFCC00" />
-      </svg>
-    </div>
-  )
+  return <RoomArt id={listing.id} title={listing.title} className={`block bg-[#efe6d8] ${className}`} />
 }
 
 export function ListingCard({ listing, match }: { listing: Listing; match?: MatchResult }) {
