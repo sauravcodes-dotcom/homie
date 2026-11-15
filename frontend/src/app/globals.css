@@ -80,6 +80,14 @@
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
   }
+  /* Beats (see components/home/Beat.tsx). With Lenis its Snap plugin settles the page; on touch,
+     where Lenis is off, native proximity snapping does the same job. */
+  html:not(.lenis):has(.beat) {
+    scroll-snap-type: y proximity;
+  }
+  .beat-start { scroll-snap-align: start; }
+  .beat-center { scroll-snap-align: center; }
+  .beat-end { scroll-snap-align: end; }
   body {
     min-height: 100dvh;
     overflow-x: hidden;
@@ -432,7 +440,7 @@
   --ld-mark: color-mix(in srgb, var(--gold) 32%, transparent);
   --ld-bad: var(--cardinal-text);
   position: relative;
-  height: 380vh;
+  height: 340vh; /* keep LD_VH in LiveDemo.tsx in step */
   font-variant-numeric: tabular-nums;
 }
 :root[data-theme='light'] .ld {

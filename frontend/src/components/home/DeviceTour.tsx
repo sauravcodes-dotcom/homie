@@ -2,24 +2,10 @@
 
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'motion/react'
 import Link from 'next/link'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Stars } from '@/components/Bits'
-import { FactorBars, ScoreRing } from '@/components/Match'
-import type { MatchResult } from '@/lib/api'
-
-// Illustrative data for the phone mockups. Fictional; not pulled from the API.
-const SAMPLE_MATCH: MatchResult = {
-  listing_id: null,
-  score: 92,
-  factors: [
-    { factor: 'budget', score: 1, weight: 0.3, reason: '$1,150/mo is within your $1,300 budget' },
-    { factor: 'dates', score: 0.96, weight: 0.25, reason: 'Covers your whole spring semester' },
-    { factor: 'location', score: 1, weight: 0.2, reason: '8 min walk to campus' },
-    { factor: 'lifestyle', score: 0.8, weight: 0.25, reason: 'Both early, both tidy, no smoking' },
-  ],
-  highlights: [],
-  concerns: [],
-}
+import { ScoreRing } from '@/components/Match'
+import { addBeat } from '@/components/SmoothScroll'
 
 function PhoneChrome({ children }: { children: React.ReactNode }) {
   return (
@@ -67,54 +53,6 @@ function SwipeScreen() {
         <span className="grid size-11 place-items-center rounded-full border-2 border-line text-bad">✕</span>
         <span className="grid size-11 place-items-center rounded-full bg-gold text-[#1d0808]">♥</span>
       </div>
-    </div>
-  )
-}
-
-function ScoreScreen() {
-  return (
-    <div className="grid gap-4 p-1">
-      <div className="flex items-center justify-between rounded-2xl bg-surface-2 p-3">
-        <div>
-          <p className="text-[10px] font-bold tracking-widest text-ink-soft uppercase">Your match</p>
-          <p className="text-sm font-bold">Room on 30th St</p>
-        </div>
-        <ScoreRing score={92} size={64} />
-      </div>
-      <div className="text-[11px]"><FactorBars match={SAMPLE_MATCH} dense /></div>
-    </div>
-  )
-}
-
-function BuildingScreen() {
-  const rows = [
-    ['Pests', 7, 11, true],
-    ['Maintenance', 5, 9, true],
-    ['Internet', 1, 8, false],
-    ['Safety', 1, 6, false],
-  ] as const
-  return (
-    <div className="grid gap-3 p-1">
-      <p className="display text-xl font-extrabold">Sample Court</p>
-      <p className="text-[10px] text-ink-soft">23 reviews · 15 verified residents</p>
-      <div className="grid gap-2 rounded-2xl bg-surface-2 p-3">
-        {rows.map(([t, n, m, rec], i) => (
-          <div key={t} className="text-[11px]">
-            <div className="flex justify-between font-semibold">
-              <span>{t} {rec && <span className="ml-1 rounded-full bg-bad/15 px-1.5 text-[9px] text-bad">Recurring</span>}</span>
-              <span className="text-ink-soft">{n} of {m}</span>
-            </div>
-            <div className="mt-1 h-1.5 rounded-full bg-surface">
-              <motion.div className="h-full rounded-full" style={{ background: rec ? 'var(--bad)' : 'var(--gold)' }} initial={{ width: 0 }} animate={{ width: `${(n / m) * 100}%` }} transition={{ delay: 0.2 + i * 0.1, duration: 0.7 }} />
-            </div>
-          </div>
-        ))}
-      </div>
-      <p className="justify-self-end rounded-2xl rounded-br-md bg-cardinal px-3 py-2 text-[11px] text-[#fff6e3]">Is there a roach problem?</p>
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="rounded-2xl rounded-bl-md bg-surface-2 p-3 text-[11px] leading-snug">
-        7 of the 11 reviews that mention pests were negative, mostly ground-floor kitchens.
-        <span className="mt-1.5 block border-l-2 border-gold pl-2 text-ink-soft">“Roaches in the kitchen all summer.” · Verified</span>
-      </motion.div>
     </div>
   )
 }
@@ -171,8 +109,6 @@ function FlagScreen() {
 
 const STEPS = [
   { kicker: 'Discover', title: 'Swipe your matches.', body: 'Every room and roommate arrives with a score. Right to save, left to pass. Arrow keys work too.', href: '/discover', cta: 'Start swiping', Screen: SwipeScreen, glow: '#990000' },
-  { kicker: 'Matching', title: 'A score you can argue with.', body: 'Rent, dates, distance, how you live and what your bio says. Every point is explained, nothing is a black box.', href: '/match', cta: 'Find my match', Screen: ScoreScreen, glow: '#ffcc00' },
-  { kicker: 'Buildings', title: 'Know the building before you sign.', body: 'Residents report pests, maintenance, safety and real costs. Ask a question and get the answer with the quotes behind it.', href: '/buildings', cta: 'Read the reviews', Screen: BuildingScreen, glow: '#ff5a1f' },
   { kicker: 'People', title: 'Message first. Review after.', body: 'Talk without swapping numbers. Once you have both written, you can rate each other as roommates, subletters or listers.', href: '/messages', cta: 'Open messages', Screen: PeopleScreen, glow: '#990000' },
   { kicker: 'Safety', title: 'Red flags, flagged.', body: 'Bait prices, pay-before-viewing, copied text. Every listing is checked before you ever see it.', href: '/listings', cta: 'Browse safely', Screen: FlagScreen, glow: '#ff3b30' },
 ]
@@ -199,9 +135,16 @@ function Phone({ index }: { index: number }) {
   )
 }
 
-/** Apple-style feature tour: steps scroll past a pinned phone whose screen changes. */
+/** Apple-style feature tour: steps scroll past a pinned phone whose screen changes. On wide
+ *  screens each step is a beat, so the page settles with one step centred beside its screen. */
 export function DeviceTour() {
   const [active, setActive] = useState(0)
+  useEffect(() => {
+    const steps = stepsRef.current?.children
+    if (!steps || !window.matchMedia('(min-width: 1024px)').matches) return
+    const off = Array.from(steps, (el) => addBeat(el as HTMLElement, 'center'))
+    return () => off.forEach((f) => f())
+  }, [])
   // The active step is whichever one is under the middle of the screen. Derived from scroll
   // position (not visibility events) so it is right even after a jump or a reload mid-page.
   const stepsRef = useRef<HTMLDivElement>(null)
@@ -216,12 +159,12 @@ export function DeviceTour() {
           {STEPS.map((s, i) => (
             <motion.div
               key={s.title}
-              className="flex min-h-[85vh] flex-col justify-center py-16"
+              className="flex min-h-[75vh] flex-col justify-center py-16 lg:[scroll-snap-align:center]"
               animate={{ opacity: active === i ? 1 : 0.25 }}
               transition={{ duration: 0.4 }}
             >
               <p className="text-sm font-bold tracking-[0.25em] text-accent uppercase">
-                {String(i + 1).padStart(2, '0')} · {s.kicker}
+                {s.kicker}
               </p>
               <h2 className="display mt-4 text-[clamp(2.6rem,6vw,5rem)] font-extrabold">{s.title}</h2>
               <p className="mt-5 max-w-md text-lg leading-relaxed text-ink-soft">{s.body}</p>

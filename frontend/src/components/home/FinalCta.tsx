@@ -6,6 +6,7 @@ import { useRef } from 'react'
 import { useAuth } from '@/lib/auth'
 import { usePrefersReducedMotion } from '@/lib/hooks'
 import { Magnetic } from '../Magnetic'
+import { Beat } from './Beat'
 
 /** The page floods cardinal while the closing line tightens into place. */
 export function FinalCta() {
@@ -17,10 +18,10 @@ export function FinalCta() {
   const radius = useTransform(scrollYProgress, [0.1, 0.5], ['4rem', '0rem'])
   const inset = useTransform(scrollYProgress, [0.1, 0.5], ['6%', '0%'])
   const textOpacity = useTransform(scrollYProgress, [0.25, 0.55], [0, 1])
-  const textScale = useTransform(scrollYProgress, [0.25, 0.8], [0.75, 1])
-  const tracking = useTransform(scrollYProgress, [0.25, 0.8], ['0.25em', '-0.04em'])
-  const ctaOpacity = useTransform(scrollYProgress, [0.7, 0.9], [0, 1])
-  const ctaY = useTransform(scrollYProgress, [0.7, 0.9], [30, 0])
+  const textScale = useTransform(scrollYProgress, [0.25, 0.7], [0.75, 1])
+  const tracking = useTransform(scrollYProgress, [0.25, 0.7], ['0.25em', '-0.04em'])
+  const ctaOpacity = useTransform(scrollYProgress, [0.6, 0.78], [0, 1])
+  const ctaY = useTransform(scrollYProgress, [0.6, 0.78], [30, 0])
 
   const content = (
     <>
@@ -51,6 +52,7 @@ export function FinalCta() {
 
   return (
     <section ref={ref} className="relative h-[140vh]">
+      <Beat top="100%" align="end" />
       <div className="sticky top-0 flex h-dvh items-center justify-center overflow-hidden">
         <motion.div
           className="absolute bg-cardinal"

@@ -1,16 +1,16 @@
-import Link from 'next/link'
 import { Hero } from '@/components/Hero'
 import { DeviceTour } from '@/components/home/DeviceTour'
 import { FinalCta } from '@/components/home/FinalCta'
-import { LiveDemo } from '@/components/home/LiveDemo'
 import { HorizontalTypes } from '@/components/home/HorizontalTypes'
-import { LetterZoom } from '@/components/home/LetterZoom'
+import { LiveDemo } from '@/components/home/LiveDemo'
 import { WordReveal } from '@/components/home/WordReveal'
-import { MatchDemo } from '@/components/MatchDemo'
-import { Reveal } from '@/components/Reveal'
 
 const TICKER = ['Subleases', 'Lease takeovers', 'Rooms', 'Roommates', 'Building reviews', 'Trojans housing Trojans']
 
+/* The page is a short run of beats, each of which lands and holds before the next one starts:
+   the promise (Hero), the problem and the turn (WordReveal), the product working (LiveDemo, the
+   peak and the longest section), what else it does (DeviceTour), the ways in (HorizontalTypes),
+   and the close (FinalCta). See components/home/Beat.tsx for how the page settles on each. */
 export default function Home() {
   return (
     <>
@@ -31,33 +31,10 @@ export default function Home() {
         </div>
       </div>
 
-      <LiveDemo />
-
       <WordReveal />
+      <LiveDemo />
       <DeviceTour />
-      <LetterZoom />
       <HorizontalTypes />
-
-      <section className="shell grid items-center gap-12 py-28 lg:grid-cols-[1fr_1.05fr]">
-        <Reveal>
-          <p className="text-sm font-bold tracking-widest text-accent uppercase">Try it live</p>
-          <h2 className="display mt-3 text-[clamp(2.6rem,6.5vw,5rem)] font-extrabold">
-            Move a slider. <span className="hl">Watch it think.</span>
-          </h2>
-          <p className="mt-6 max-w-lg text-lg leading-relaxed text-ink-soft">
-            This card calls the real matching engine. Change the budget, the move-in date or your
-            habits and every factor rescores on the spot.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/match" className="btn btn-cardinal">Find my match</Link>
-            <Link href="/onboarding" className="btn btn-ghost">Take the quiz</Link>
-          </div>
-        </Reveal>
-        <Reveal delay={0.15}>
-          <MatchDemo />
-        </Reveal>
-      </section>
-
       <FinalCta />
     </>
   )

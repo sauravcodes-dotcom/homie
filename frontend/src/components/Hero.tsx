@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/lib/auth'
 import { usePrefersReducedMotion } from '@/lib/hooks'
+import { Beat } from './home/Beat'
 import { Magnetic } from './Magnetic'
 
 // three.js is only downloaded when the 3D scene will actually be shown.
@@ -14,8 +15,9 @@ const HeroScene = dynamic(() => import('./HeroScene'), { ssr: false })
 const WORDS = ['Find', 'your', 'place.', 'Find', 'your', 'people.']
 const EASE = [0.2, 0.9, 0.2, 1] as const
 
-/** Pinned for ~a screen of scrolling: the headline recedes and blurs while the camera
- *  flies down into the city, then the scene fades into the page. */
+/** Pinned for under a screen of scrolling. The headline holds still for the first stretch so it
+ *  lands, then recedes and blurs while the camera flies down into the city and the scene fades
+ *  into the page. */
 export function Hero() {
   const { user } = useAuth()
   const ref = useRef<HTMLElement>(null)
@@ -27,16 +29,16 @@ export function Hero() {
   }, [reduce])
 
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] })
-  const textScale = useTransform(scrollYProgress, [0, 0.7], [1, 0.8])
-  const textY = useTransform(scrollYProgress, [0, 0.7], ['0vh', '-12vh'])
-  const textOpacity = useTransform(scrollYProgress, [0.08, 0.55], [1, 0])
-  const textBlur = useTransform(scrollYProgress, [0.12, 0.6], ['blur(0px)', 'blur(16px)'])
+  const textScale = useTransform(scrollYProgress, [0.25, 0.8], [1, 0.8])
+  const textY = useTransform(scrollYProgress, [0.25, 0.8], ['0vh', '-12vh'])
+  const textOpacity = useTransform(scrollYProgress, [0.3, 0.7], [1, 0])
+  const textBlur = useTransform(scrollYProgress, [0.32, 0.72], ['blur(0px)', 'blur(16px)'])
   const sceneScale = useTransform(scrollYProgress, [0, 1], [1, 1.18])
-  const hintOpacity = useTransform(scrollYProgress, [0, 0.06], [1, 0])
-  const veil = useTransform(scrollYProgress, [0.7, 1], [0, 1])
+  const veil = useTransform(scrollYProgress, [0.75, 1], [0, 1])
 
   return (
     <section ref={ref} className={`relative -mt-16 ${reduce ? '' : 'h-[170vh]'}`}>
+      {!reduce && <Beat top="0" />}
       <div className="grain sticky top-0 isolate h-dvh overflow-hidden">
         <motion.div
           className="hero-fallback absolute inset-0 -z-10"
@@ -110,22 +112,6 @@ export function Hero() {
           </motion.div>
         </motion.div>
 
-        {!reduce && (
-          <motion.div
-            style={{ opacity: hintOpacity }}
-            className="absolute inset-x-0 bottom-8 flex flex-col items-center gap-2 text-xs font-bold tracking-[0.3em] text-ink-soft uppercase"
-            aria-hidden
-          >
-            Scroll
-            <span className="flex h-10 w-6 justify-center rounded-full border-2 border-ink-soft/50 pt-2">
-              <motion.span
-                className="size-1.5 rounded-full bg-gold"
-                animate={{ y: [0, 14, 0], opacity: [1, 0.2, 1] }}
-                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-              />
-            </span>
-          </motion.div>
-        )}
         {!reduce && <motion.div style={{ opacity: veil }} className="pointer-events-none absolute inset-0 bg-bg" aria-hidden />}
       </div>
     </section>

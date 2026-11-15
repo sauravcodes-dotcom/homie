@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { scrollPageTo } from '@/components/SmoothScroll'
+import { Beat, beatTop } from './Beat'
 
 /*
   The product, running on sample data.
@@ -67,6 +68,9 @@ const TABS = [
 
 // Scroll ranges per pane once the clip is done. The describe pane only exists inside the clip.
 const RANGES: ([number, number] | null)[] = [null, [-1, 0.42], [0.42, 0.63], [0.63, 0.85], [0.85, 1.01]]
+const LD_VH = 340 // the section's height (.ld in globals.css)
+// Where each pane is fully composed: the clip, building profile, roommate fit, describe.
+const BEATS = [0, 0.6, 0.76, 0.97]
 const HOLD = 0.12 // landing beyond this without scrolling through the section skips the clip
 const MIN_WATCH = 1500 // ms of clip everyone sees before a new scroll may skip the rest
 const GESTURE_GAP = 250 // ms without wheel events that ends a wheel gesture (and its momentum)
@@ -472,6 +476,7 @@ export function LiveDemo() {
 
   return (
     <section ref={root} className={`ld ${isStatic ? 'ld-static' : ''}`} aria-label="HOMIE, running on sample data">
+      {!isStatic && BEATS.map((p) => <Beat key={p} top={beatTop(p, LD_VH)} />)}
       <div className="ld-stage">
         <div className="shell ld-app">
           <header className="ld-top">

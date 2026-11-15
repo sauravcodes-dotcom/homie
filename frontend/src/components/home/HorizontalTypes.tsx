@@ -4,6 +4,7 @@ import { motion, useMotionValue, useScroll, useTransform } from 'motion/react'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { usePrefersReducedMotion } from '@/lib/hooks'
+import { Beat } from './Beat'
 
 const CARDS = [
   { n: '01', title: 'Sublease', body: 'Going abroad or graduating early? Hand your room to someone whose dates and budget actually fit.', href: '/listings?type=sublease', bg: 'linear-gradient(140deg,#990000 0%,#4d0000 60%,#1d0808 100%)' },
@@ -12,13 +13,15 @@ const CARDS = [
   { n: '04', title: 'Roommate wanted', body: 'Someone moving out? Find a replacement who fits the household you already have.', href: '/listings?type=roommate_replacement', bg: 'linear-gradient(140deg,#5c0000 0%,#990000 45%,#ffcc00 140%)' },
 ]
 
-/** Pinned section: scrolling down slides a row of large cards sideways. */
+/** Pinned section: scrolling down slides a row of large cards sideways. Each card is a beat, so
+ *  the row settles with a card squared up on the left instead of stopping halfway between two. */
 export function HorizontalTypes() {
   const ref = useRef<HTMLElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const reduce = usePrefersReducedMotion()
   const distance = useMotionValue(0)
   const [height, setHeight] = useState<number | null>(null)
+  const [stops, setStops] = useState<number[]>([])
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] })
   const x = useTransform(() => -scrollYProgress.get() * distance.get())
   const barScale = useTransform(scrollYProgress, [0, 1], [0, 1])
@@ -31,6 +34,12 @@ export function HorizontalTypes() {
       const d = Math.max(0, track.scrollWidth - window.innerWidth)
       distance.set(d)
       setHeight(d + window.innerHeight)
+      // Scroll offset (px into the section) at which each item's left edge sits where the
+      // heading starts. Scroll maps 1:1 to sideways travel, so that is just the offset difference.
+      const items = Array.from(track.children) as HTMLElement[]
+      const pad = items[0]?.offsetLeft ?? 0
+      const at = items.map((el) => Math.round(Math.min(d, Math.max(0, el.offsetLeft - pad))))
+      setStops([...new Set(at)])
     }
     measure()
     const ro = new ResizeObserver(measure)
@@ -84,6 +93,7 @@ export function HorizontalTypes() {
 
   return (
     <section ref={ref} className="relative" style={{ height: height ?? '300vh' }}>
+      {stops.map((px) => <Beat key={px} top={`${px}px`} />)}
       <div className="sticky top-0 flex h-dvh items-center overflow-hidden">
         <motion.div ref={trackRef} style={{ x }} className="flex items-center gap-6 pr-[8vw] pl-[max(1.25rem,calc((100vw-76rem)/2+2rem))]">
           {heading}
