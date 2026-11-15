@@ -1,6 +1,6 @@
 """In-app messaging and person-to-person reviews."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from statistics import mean
 
 from fastapi import APIRouter, Depends, Query
@@ -11,7 +11,15 @@ from app.api.deps import current_user, optional_user
 from app.api.presenters import public_user
 from app.core.errors import ForbiddenError, HomieError, NotFoundError
 from app.database.session import get_db
-from app.models import ChatMessage, Conversation, Listing, PersonReview, SeekerProfile, User
+from app.models import (
+    ChatMessage,
+    Conversation,
+    Listing,
+    PersonReview,
+    SeekerProfile,
+    TypingSignal,
+    User,
+)
 from app.schemas.social import (
     ConversationDetail,
     ConversationOut,
@@ -188,9 +196,52 @@ def conversation_detail(
     if dirty:
         db.commit()
     base = _conversation_out(db, row, user)
-    return ConversationDetail(
-        **base.model_dump(), messages=[_message_out(m, user) for m in messages]
+    read_up_to = db.scalar(
+        select(func.max(ChatMessage.id)).where(
+            ChatMessage.conversation_id == row.id,
+            ChatMessage.sender_id == user.id,
+            ChatMessage.read_at.is_not(None),
+        )
     )
+    other_id = row.user_b_id if row.user_a_id == user.id else row.user_a_id
+    typing_until = db.scalar(
+        select(TypingSignal.until).where(
+            TypingSignal.conversation_id == row.id, TypingSignal.user_id == other_id
+        )
+    )
+    return ConversationDetail(
+        **base.model_dump(),
+        messages=[_message_out(m, user) for m in messages],
+        other_read_up_to=read_up_to,
+        other_typing=typing_until is not None and _aware(typing_until) > now,
+    )
+
+
+def _aware(t: datetime) -> datetime:
+    # SQLite hands back naive datetimes; they were written in UTC.
+    return t if t.tzinfo else t.replace(tzinfo=UTC)
+
+
+TYPING_TTL = timedelta(seconds=6)
+
+
+@router.post("/conversations/{conversation_id}/typing", status_code=204)
+def typing(
+    conversation_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)
+) -> None:
+    """Say "I am typing" for the next few seconds. The other side sees it on its next poll."""
+    row = _conversation(db, conversation_id, user)
+    signal = db.scalar(
+        select(TypingSignal).where(
+            TypingSignal.conversation_id == row.id, TypingSignal.user_id == user.id
+        )
+    )
+    until = datetime.now(UTC) + TYPING_TTL
+    if signal is None:
+        db.add(TypingSignal(conversation_id=row.id, user_id=user.id, until=until))
+    else:
+        signal.until = until
+    db.commit()
 
 
 @router.post(
@@ -209,6 +260,14 @@ def send_message(
     )
     db.add(msg)
     row.last_message_at = now
+    # Sending ends "typing".
+    signal = db.scalar(
+        select(TypingSignal).where(
+            TypingSignal.conversation_id == row.id, TypingSignal.user_id == user.id
+        )
+    )
+    if signal is not None:
+        signal.until = now
     db.commit()
     return _message_out(msg, user)
 

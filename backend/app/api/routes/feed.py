@@ -16,6 +16,7 @@ from app.schemas.listing import (
     ProfileOut,
     RoommateCard,
     SwipeIn,
+    SwipeResult,
 )
 from app.schemas.matching import Lifestyle
 from app.services.embeddings import EmbeddingProvider, get_embedding_provider
@@ -166,9 +167,13 @@ def roommates(
     return cards[:limit]
 
 
-@router.post("/swipes", status_code=204)
-def swipe(data: SwipeIn, db: Session = Depends(get_db), user: User = Depends(current_user)) -> None:
-    """Save or pass on a listing or a roommate profile. Re-swiping overwrites."""
+@router.post("/swipes", response_model=SwipeResult)
+def swipe(
+    data: SwipeIn, db: Session = Depends(get_db), user: User = Depends(current_user)
+) -> SwipeResult:
+    """Save or pass on a listing or a roommate profile. Re-swiping overwrites.
+
+    Saving a student who already saved you is a mutual match: the response says so."""
     if data.target_type == "listing":
         if db.get(Listing, data.target_id) is None:
             raise NotFoundError("Listing not found")
@@ -194,6 +199,20 @@ def swipe(data: SwipeIn, db: Session = Depends(get_db), user: User = Depends(cur
         db.add(row)
     row.action = data.action
     db.commit()
+    mutual = (
+        data.target_type == "user"
+        and data.action == "save"
+        and db.scalar(
+            select(Swipe.id).where(
+                Swipe.user_id == data.target_id,
+                Swipe.target_type == "user",
+                Swipe.target_id == user.id,
+                Swipe.action == "save",
+            )
+        )
+        is not None
+    )
+    return SwipeResult(mutual=mutual)
 
 
 @router.delete("/swipes/{target_type}/{target_id}", status_code=204)

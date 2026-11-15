@@ -2,7 +2,7 @@ from app.models.apartment import Apartment, ExternalReviewSummary, ResidencyVeri
 from app.models.auth import LoginCode, UserSession
 from app.models.feedback import RoommateFeedback
 from app.models.listing import Listing, ListingType, SeekerProfile
-from app.models.social import ChatMessage, Conversation, PersonReview, Swipe
+from app.models.social import ChatMessage, Conversation, PersonReview, Swipe, TypingSignal
 from app.models.user import User
 
 __all__ = [
@@ -19,6 +19,7 @@ __all__ = [
     "RoommateFeedback",
     "SeekerProfile",
     "Swipe",
+    "TypingSignal",
     "User",
     "UserSession",
 ]

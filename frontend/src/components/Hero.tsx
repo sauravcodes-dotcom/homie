@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Fragment, useEffect, useState } from 'react'
 import { useAuth } from '@/lib/auth'
 import { usePrefersReducedMotion } from '@/lib/hooks'
+import { LAClock } from './LAClock'
 import { Magnetic } from './Magnetic'
 
 // three.js is only downloaded when the 3D scene will actually be shown.
@@ -45,6 +46,9 @@ export function Hero() {
             <span className="size-1.5 animate-pulse rounded-full bg-accent" aria-hidden />
             Student housing, for Trojans only
           </motion.p>
+          <div className="mt-2.5">
+            <LAClock delay={0.2} />
+          </div>
 
           <h1 className="display mt-6 max-w-5xl text-[clamp(3.4rem,11vw,9.5rem)] font-extrabold">
             {WORDS.map((word, i) => (

@@ -2,6 +2,7 @@
 
 import { motion } from 'motion/react'
 import Link from 'next/link'
+import { BuildingFlyover } from '@/components/city/BuildingFlyover'
 import { useParams } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Empty, ErrorNote, StarInput, Stars, VerifiedBadge } from '@/components/Bits'
@@ -337,6 +338,7 @@ export default function BuildingPage() {
         <Link href="/buildings" className="text-sm font-bold text-accent">← All buildings</Link>
         <h1 className="display mt-3 text-[clamp(2.8rem,8vw,6rem)] font-extrabold">{b.name}</h1>
         <p className="mt-3 text-lg text-ink-soft">{[b.address, b.neighborhood].filter(Boolean).join(' · ')}</p>
+        <BuildingFlyover building={b} rating={shownRating ?? null} />
         <dl className="mt-7 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="card p-4">
             <dt className="text-sm text-ink-soft">{!b.rating && shownRating !== null ? 'Google rating' : 'HOMIE score'}</dt>

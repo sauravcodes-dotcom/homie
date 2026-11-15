@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useState, ViewTransition } from 'react'
 import { BenchmarkPanel, Empty, ErrorNote, RiskPanel, VerifiedBadge } from '@/components/Bits'
 import { ListingPhoto } from '@/components/ListingCard'
-import { MapView } from '@/components/MapView'
+import { WalkToClass } from '@/components/WalkToClass'
 import { RoommatesPanel } from '@/components/Personality'
 import { RoommateNotes } from '@/components/RoommateNotes'
 import { FactorBars, ScoreRing } from '@/components/Match'
@@ -212,23 +212,7 @@ export default function ListingPage() {
                 the center of campus ({listing.travel.miles} mi, estimated).
               </p>
             )}
-            <div className="mt-4">
-              <MapView
-                className="h-72"
-                rings
-                points={[{
-                  id: listing.id,
-                  title: listing.title,
-                  monthly_rent: listing.monthly_rent,
-                  listing_type: listing.listing_type,
-                  latitude: listing.latitude!,
-                  longitude: listing.longitude!,
-                  neighborhood: listing.neighborhood,
-                  travel: listing.travel!,
-                  photo: null,
-                }]}
-              />
-            </div>
+            <WalkToClass lat={listing.latitude!} lng={listing.longitude!} title={listing.title} />
           </section>
         )}
       </div>

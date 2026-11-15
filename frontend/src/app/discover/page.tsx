@@ -7,6 +7,7 @@ import { ListingPhoto } from '@/components/ListingCard'
 import { RoommatesPanel } from '@/components/Personality'
 import { ScoreRing } from '@/components/Match'
 import { SwipeDeck } from '@/components/SwipeDeck'
+import { MatchMoment } from '@/components/MatchMoment'
 import { post, type FeedItem, type RoommateCard } from '@/lib/api'
 import { useRequireAuth } from '@/lib/auth'
 import { dateRange, day, TYPE_LABEL, usd } from '@/lib/format'
@@ -123,30 +124,37 @@ function RoommateFace({ card }: { card: RoommateCard }) {
 }
 
 export default function Discover() {
-  const { ready } = useRequireAuth({ profile: true })
+  const { ready, user } = useRequireAuth({ profile: true })
+  const [matched, setMatched] = useState<RoommateCard | null>(null)
   const [tab, setTab] = useState<Tab>('listings')
   const [error, setError] = useState<string | null>(null)
   const feed = useApi<FeedItem[]>(ready && tab === 'listings' ? '/feed?limit=30' : null)
   const mates = useApi<RoommateCard[]>(ready && tab === 'roommates' ? '/roommates?limit=30' : null)
 
-  const swipe = useCallback((target_type: 'listing' | 'user', target_id: number, action: 'save' | 'pass') => {
-    post('/swipes', { target_type, target_id, action }).catch((e: unknown) =>
-      setError(e instanceof Error ? e.message : 'Could not save that swipe'),
-    )
-  }, [])
+  const swipe = useCallback((target_type: 'listing' | 'user', target_id: number, action: 'save' | 'pass') =>
+    post<{ mutual: boolean }>('/swipes', { target_type, target_id, action }).catch((e: unknown) => {
+      setError(e instanceof Error ? e.message : 'Could not save that swipe')
+      return { mutual: false }
+    }), [])
   const swipeListing = useCallback(
-    (item: FeedItem, d: 'save' | 'pass') => swipe('listing', item.listing.id, d),
+    (item: FeedItem, d: 'save' | 'pass') => void swipe('listing', item.listing.id, d),
     [swipe],
   )
   const swipeMate = useCallback(
-    (card: RoommateCard, d: 'save' | 'pass') => swipe('user', card.user.id, d),
+    (card: RoommateCard, d: 'save' | 'pass') =>
+      void swipe('user', card.user.id, d).then((r) => {
+        // Both saved each other: let the card fly off first, then the moment.
+        if (r?.mutual) setTimeout(() => setMatched(card), 350)
+      }),
     [swipe],
   )
 
+  const closeMatch = useCallback(() => setMatched(null), [])
   const active = tab === 'listings' ? feed : mates
 
   return (
     <div className="shell py-10">
+      <MatchMoment card={matched} me={user?.full_name || 'You'} onClose={closeMatch} />
       <div className="flex flex-col items-center gap-5">
         <h1 className="display text-center text-[clamp(2.4rem,6vw,4rem)] font-extrabold">
           Right to <span className="hl">save.</span> Left to pass.

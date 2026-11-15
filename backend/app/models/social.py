@@ -48,6 +48,21 @@ class ChatMessage(TimestampMixin, Base):
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class TypingSignal(Base):
+    """Someone is typing in a conversation, until `until`. A table (not process memory) so it
+    works across serverless instances; a new table, so create_all adds it to old databases."""
+
+    __tablename__ = "typing_signals"
+    __table_args__ = (UniqueConstraint("conversation_id", "user_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class PersonReview(TimestampMixin, Base):
     """A review of a student as a roommate, subletter or lister.
 

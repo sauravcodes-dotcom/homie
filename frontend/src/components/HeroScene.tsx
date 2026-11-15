@@ -3,6 +3,7 @@
 import type { MotionValue } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import { laPhase, SKY } from '@/lib/la'
 
 const GRID = 22
 const SPACING = 1.35
@@ -80,13 +81,22 @@ export default function HeroScene({ progress }: { progress?: MotionValue<number>
     const points = new THREE.Points(sparkGeo, sparkMat)
     scene.add(points)
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.55))
-    const sun = new THREE.DirectionalLight(0xffd36b, 2.4)
-    sun.position.set(8, 14, 6)
+    // Lit for the time of day in Los Angeles: noon sun, golden hour, dusk or night.
+    const phase = laPhase()
+    const sky = SKY[phase]
+    scene.add(new THREE.AmbientLight(sky.ambient, sky.ambientIntensity))
+    const sun = new THREE.DirectionalLight(sky.sun, sky.sunIntensity)
+    sun.position.set(phase === 'golden' || phase === 'dusk' ? 16 : 8, phase === 'night' ? 20 : 9 + sky.sunIntensity * 2, 6)
     scene.add(sun)
-    const ember = new THREE.PointLight(0xff2a1a, 60, 40)
+    const ember = new THREE.PointLight(sky.ember, sky.glow, 40)
     ember.position.set(-6, 6, 4)
     scene.add(ember)
+    sparkMat.opacity = 0.35 + sky.sparks * 0.5
+    if (phase === 'night' || phase === 'dusk') {
+      // Lit windows after dark.
+      material.emissive = new THREE.Color('#3a0800')
+      material.emissiveIntensity = 1
+    }
 
     const pointer = { x: 0, y: 0, tx: 0, ty: 0 }
     const onMove = (e: PointerEvent) => {

@@ -43,6 +43,9 @@ class ConversationOut(BaseModel):
 
 class ConversationDetail(ConversationOut):
     messages: list[MessageOut]
+    # Highest id among my messages the other person has opened (read receipts).
+    other_read_up_to: int | None = None
+    other_typing: bool = False
 
 
 Trait = Literal["cleanliness", "communication", "reliability", "respect"]

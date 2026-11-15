@@ -342,7 +342,12 @@ export type Conversation = {
   unread: number
   can_review: boolean
 }
-export type ConversationDetail = Conversation & { messages: Message[] }
+export type ConversationDetail = Conversation & {
+  messages: Message[]
+  /** Highest id among my messages the other person has opened. */
+  other_read_up_to: number | null
+  other_typing: boolean
+}
 
 export type PersonReview = {
   id: number

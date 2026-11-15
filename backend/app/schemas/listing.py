@@ -201,6 +201,10 @@ class RoommateCard(BaseModel):
         return describe(self.lifestyle.personality)
 
 
+class SwipeResult(BaseModel):
+    mutual: bool = False
+
+
 class SwipeIn(BaseModel):
     target_type: Literal["listing", "user"] = "listing"
     target_id: int
