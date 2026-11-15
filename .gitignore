@@ -33,3 +33,6 @@ backend/uploads/
 # Next.js
 .next/
 next-env.d.ts
+
+# Design prototypes (local only)
+scrollcraft/

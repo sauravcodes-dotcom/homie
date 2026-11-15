@@ -1,8 +1,8 @@
 import Link from 'next/link'
-import { AISearchBox } from '@/components/AISearch'
 import { Hero } from '@/components/Hero'
 import { DeviceTour } from '@/components/home/DeviceTour'
 import { FinalCta } from '@/components/home/FinalCta'
+import { LiveDemo } from '@/components/home/LiveDemo'
 import { HorizontalTypes } from '@/components/home/HorizontalTypes'
 import { LetterZoom } from '@/components/home/LetterZoom'
 import { WordReveal } from '@/components/home/WordReveal'
@@ -31,23 +31,7 @@ export default function Home() {
         </div>
       </div>
 
-      <section className="shell py-24">
-        <Reveal>
-          <div className="card grid items-start gap-8 p-6 shadow-[0_50px_120px_-60px_var(--glow)] sm:p-10 lg:grid-cols-[1fr_1.2fr]">
-            <div>
-              <p className="text-sm font-bold tracking-widest text-accent uppercase">AI matching</p>
-              <h2 className="display mt-3 text-[clamp(2.2rem,5vw,3.8rem)] font-extrabold">
-                Find apartments with <span className="hl">AI.</span>
-              </h2>
-              <p className="mt-5 max-w-lg text-lg leading-relaxed text-ink-soft">
-                Say what you need: budget, dates, area, how you live, must-haves. HOMIE reads it,
-                scores every open listing near campus and tells you why its top picks fit.
-              </p>
-            </div>
-            <AISearchBox goTo />
-          </div>
-        </Reveal>
-      </section>
+      <LiveDemo />
 
       <WordReveal />
       <DeviceTour />
