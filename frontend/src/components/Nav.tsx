@@ -61,7 +61,7 @@ export function Nav() {
 
   return (
     <motion.header
-      className="sticky top-0 z-40 border-b border-line bg-bg/70 backdrop-blur-2xl backdrop-saturate-150"
+      className="sticky top-0 z-40 border-b border-line bg-bg/70 backdrop-blur-lg backdrop-saturate-150"
       animate={{ y: hidden && !open ? '-100%' : '0%' }}
       transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
     >

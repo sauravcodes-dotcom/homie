@@ -80,6 +80,10 @@
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
   }
+  /* Lenis drives scrolling itself; native smooth scrolling would fight it. */
+  html.lenis {
+    scroll-behavior: auto;
+  }
   body {
     min-height: 100dvh;
     overflow-x: hidden;
@@ -305,17 +309,21 @@
 
 /* Soft cardinal light that follows the pointer (set by CursorGlow). */
 .cursor-glow {
+  /* A fixed-size light moved with transform, so following the pointer only
+     recomposites; it never repaints the whole viewport. */
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 1040px;
+  height: 1040px;
+  margin: -520px 0 0 -520px;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(
-    520px circle at var(--mx, 50%) var(--my, -20%),
-    var(--glow),
-    transparent 65%
-  );
+  background: radial-gradient(circle at center, var(--glow), transparent 65%);
   opacity: 0.55;
   transition: opacity 0.4s;
+  transform: translate3d(var(--mx, 50vw), var(--my, -20vh), 0);
+  will-change: transform;
 }
 
 .grain::after {

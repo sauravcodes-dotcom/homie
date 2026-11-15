@@ -19,7 +19,8 @@ export function SmoothScroll() {
   useEffect(() => {
     if (!window.matchMedia('(pointer: fine)').matches) return
     const lenis = new Lenis({
-      lerp: 0.11,
+      // Higher lerp = less trailing glide after the wheel stops (0.11 felt floaty).
+      lerp: 0.16,
       autoRaf: true,
       anchors: { offset: -88 },
       allowNestedScroll: true,

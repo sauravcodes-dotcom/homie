@@ -206,9 +206,15 @@ export function DeviceTour() {
   // position (not visibility events) so it is right even after a jump or a reload mid-page.
   const stepsRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({ target: stepsRef, offset: ['start center', 'end center'] })
-  useMotionValueEvent(scrollYProgress, 'change', (v) =>
-    setActive(Math.min(STEPS.length - 1, Math.max(0, Math.floor(v * STEPS.length)))),
-  )
+  const activeRef = useRef(0)
+  useMotionValueEvent(scrollYProgress, 'change', (v) => {
+    const next = Math.min(STEPS.length - 1, Math.max(0, Math.floor(v * STEPS.length)))
+    // Only touch React state when the step actually changes, not on every scrolled pixel.
+    if (next !== activeRef.current) {
+      activeRef.current = next
+      setActive(next)
+    }
+  })
   return (
     <section className="relative" aria-label="What HOMIE does">
       <div className="shell lg:grid lg:grid-cols-[1fr_1fr] lg:gap-16">
@@ -235,12 +241,16 @@ export function DeviceTour() {
         </div>
         <div className="hidden lg:block">
           <div className="sticky top-0 flex h-dvh items-center justify-center">
-            <motion.div
-              className="pointer-events-none absolute size-[34rem] rounded-full blur-[120px]"
-              animate={{ backgroundColor: STEPS[active].glow, opacity: 0.35 }}
-              transition={{ duration: 0.8 }}
-              aria-hidden
-            />
+            {/* One pre-blurred glow per step, crossfaded with opacity. Animating the colour
+                of a single 120px-blurred circle re-blurred it on every frame. */}
+            {STEPS.map((s, i) => (
+              <div
+                key={s.title}
+                className="pointer-events-none absolute size-[34rem] rounded-full blur-[120px] transition-opacity duration-[800ms] will-change-[opacity]"
+                style={{ backgroundColor: s.glow, opacity: active === i ? 0.35 : 0 }}
+                aria-hidden
+              />
+            ))}
             <div className="relative w-[19rem]">
               <Phone index={active} />
             </div>

@@ -30,7 +30,9 @@ export function Hero() {
   const textScale = useTransform(scrollYProgress, [0, 0.7], [1, 0.8])
   const textY = useTransform(scrollYProgress, [0, 0.7], ['0vh', '-12vh'])
   const textOpacity = useTransform(scrollYProgress, [0.08, 0.55], [1, 0])
-  const textBlur = useTransform(scrollYProgress, [0.12, 0.6], ['blur(0px)', 'blur(16px)'])
+  // Capped at 6px: by the time it would get stronger the text has nearly faded out,
+  // and a large animated blur is the most expensive thing to redraw while scrolling.
+  const textBlur = useTransform(scrollYProgress, [0.12, 0.6], ['blur(0px)', 'blur(6px)'])
   const sceneScale = useTransform(scrollYProgress, [0, 1], [1, 1.18])
   const hintOpacity = useTransform(scrollYProgress, [0, 0.06], [1, 0])
   const veil = useTransform(scrollYProgress, [0.7, 1], [0, 1])
@@ -49,7 +51,7 @@ export function Hero() {
         </motion.div>
 
         <motion.div
-          className="shell flex h-full flex-col justify-center pt-16"
+          className="shell flex h-full flex-col justify-center pt-16 will-change-transform"
           style={reduce ? undefined : { scale: textScale, y: textY, opacity: textOpacity, filter: textBlur }}
         >
           <motion.p

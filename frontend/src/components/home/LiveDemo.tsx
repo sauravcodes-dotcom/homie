@@ -151,6 +151,7 @@ export function LiveDemo() {
     const stage = $('.ld-stage')
 
     const setTab = (t: HTMLElement, on: boolean) => {
+      if (t.classList.contains('is-on') === on) return
       t.classList.toggle('is-on', on)
       if (on) t.setAttribute('aria-current', 'step')
       else t.removeAttribute('aria-current')
@@ -170,24 +171,38 @@ export function LiveDemo() {
     let rankOf = new Map<string, number>()
     const matchesPane = $('#ld-matches')
     // Rows share whatever height the pane has left, so all six fit on short screens too.
-    const rowH = () => {
+    // Measured once per resize, never per frame: reading layout right after the
+    // scroll-driven style writes forced a full synchronous reflow on every frame.
+    let cachedRowH = 0
+    const measureRowH = () => {
       const mobile = window.matchMedia('(max-width: 820px)').matches
       const avail = (matchesPane.clientHeight - rowsEl.offsetTop - 16) / SAMPLE.length
-      return Math.floor(clamp(avail, mobile ? 50 : 40, mobile ? 62 : 66))
+      cachedRowH = Math.floor(clamp(avail, mobile ? 50 : 40, mobile ? 62 : 66))
     }
+    const setText = (node: Element, value: string, html = false) => {
+      if (html ? node.innerHTML === value : node.textContent === value) return
+      if (html) node.innerHTML = value
+      else node.textContent = value
+    }
+    let laidOutH = -1
     function rank() {
-      const h = rowH()
-      rowsEl.style.height = SAMPLE.length * h + 'px'
+      if (!cachedRowH) measureRowH()
+      const h = cachedRowH
+      if (h !== laidOutH) {
+        rowsEl.style.height = SAMPLE.length * h + 'px'
+        rowEls.forEach((r) => r.style.setProperty('--rh', h + 'px'))
+        laidOutH = h
+      }
       const scored = SAMPLE.map((l) => ({ l, ...score(l, budget) })).sort((a, b) => b.s - a.s)
       rankOf = new Map(scored.map((x, i) => [x.l.name, i]))
       scored.forEach((x, i) => {
         const r = rowEls.get(x.l.name)!
-        r.style.setProperty('--rh', h + 'px')
-        r.style.transform = `translateY(${i * h}px)`
-        r.classList.toggle('is-first', i === 0)
-        r.querySelector('.ld-rank')!.textContent = String(i + 1)
-        r.querySelector('.ld-score')!.textContent = String(x.s)
-        r.querySelector('.ld-why')!.innerHTML = x.why
+        const ty = `translateY(${i * h}px)`
+        if (r.style.transform !== ty) r.style.transform = ty
+        if (r.classList.contains('is-first') !== (i === 0)) r.classList.toggle('is-first', i === 0)
+        setText(r.querySelector('.ld-rank')!, String(i + 1))
+        setText(r.querySelector('.ld-score')!, String(x.s))
+        setText(r.querySelector('.ld-why')!, x.why, true)
       })
       topName.textContent = scored[0].l.name
     }
@@ -280,9 +295,18 @@ export function LiveDemo() {
     window.addEventListener('keydown', onKey)
 
     /* ---------- After the clip, scroll drives the walkthrough ---------- */
-    function progress() {
+    // Section geometry is cached and refreshed on resize, so scrolling never has to
+    // ask the browser for layout. Progress then comes straight from scrollY.
+    const geo = { top: 0, height: 1, stageH: 0 }
+    function measure() {
       const r = el!.getBoundingClientRect()
-      return -r.top / (r.height - stage.offsetHeight)
+      geo.top = r.top + window.scrollY
+      geo.height = r.height
+      geo.stageH = stage.offsetHeight
+      measureRowH()
+    }
+    function progress() {
+      return (window.scrollY - geo.top) / Math.max(1, geo.height - geo.stageH)
     }
     function render(p: number) {
       if (!done) return
@@ -317,7 +341,7 @@ export function LiveDemo() {
       qa.style.opacity = String(seg(p, 0.55, 0.58))
       if (active === 2) status('Building profile: <b>Figueroa Court</b>, 14 reviews from 6 verified residents')
       cmpRows.forEach((r, i) => (r.style.opacity = String(seg(p, 0.645 + i * 0.016, 0.66 + i * 0.016))))
-      fitNum.textContent = String(Math.round(seg(p, 0.64, 0.71) * 86))
+      setText(fitNum, String(Math.round(seg(p, 0.64, 0.71) * 86)))
       if (active === 3) status('Roommate fit: <b>86</b>, one thing to talk about')
       if (active === 4) status('Waiting for your description')
     }
@@ -338,7 +362,7 @@ export function LiveDemo() {
       if (!started) {
         // Start the clip as the stage arrives; if someone jumps straight past it, show the end state.
         if (p > HOLD) finish()
-        else if (el!.getBoundingClientRect().top < window.innerHeight * 0.3) play()
+        else if (geo.top - window.scrollY < window.innerHeight * 0.3) play()
       } else if (!done && p > HOLD) finish()
       if (!ticking) {
         ticking = true
@@ -346,9 +370,13 @@ export function LiveDemo() {
       }
     }
     const onResize = () => {
+      measure()
       rank()
       render(cur)
     }
+    // Page height above the demo can change after load (fonts, images), so re-measure then too.
+    const ro = new ResizeObserver(() => measure())
+    ro.observe(document.body)
 
     const scrollToAt = (at: number, smooth = !reduce) => {
       const top = window.scrollY + el.getBoundingClientRect().top + at * (el.offsetHeight - stage.offsetHeight) + (at ? 2 : 0)
@@ -379,6 +407,7 @@ export function LiveDemo() {
     replayBtn.addEventListener('click', onReplay)
     skipBtn.addEventListener('click', finish)
 
+    measure()
     rank()
     if (reduce) {
       typeTo(SAY_TEXT.length)
@@ -398,6 +427,7 @@ export function LiveDemo() {
       budgetIn.removeEventListener('input', onBudget)
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('scroll', onScroll)
+      ro.disconnect()
       window.removeEventListener('resize', onResize)
       tabs.forEach((t, i) => t.removeEventListener('click', tabHandlers[i]))
       replayBtn.removeEventListener('click', onReplay)
