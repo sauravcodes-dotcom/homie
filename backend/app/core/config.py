@@ -81,7 +81,9 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     # Groq: free tier, OpenAI-compatible API. Only the key is needed.
     groq_api_key: SecretStr | None = None
-    groq_model: str = "llama-3.3-70b-versatile"
+    # GPT-OSS 120B is on Groq's free developer tier (Llama 3.3 70B became
+    # enterprise-only). Override with GROQ_MODEL if Groq's lineup changes.
+    groq_model: str = "openai/gpt-oss-120b"
     groq_base_url: str = "https://api.groq.com/openai/v1"
     openai_base_url: str = "https://api.openai.com/v1"
     ai_request_timeout_seconds: float = 30.0

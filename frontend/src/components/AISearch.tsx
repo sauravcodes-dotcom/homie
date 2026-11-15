@@ -186,6 +186,7 @@ function chips(u: Understood): string[] {
 
 function modelLabel(model: string | null): string {
   if (!model) return 'the AI model'
+  if (model.includes('gpt-oss-120b')) return 'GPT-OSS 120B on Groq'
   if (model.includes('llama-3.3-70b')) return 'Llama 3.3 70B on Groq'
   return model
 }

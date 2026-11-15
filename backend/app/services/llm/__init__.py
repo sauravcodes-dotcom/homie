@@ -18,6 +18,8 @@ def build_llm_provider(settings: Settings) -> LLMProvider:
             base_url=settings.groq_base_url,
             timeout=settings.ai_request_timeout_seconds,
             name="groq",
+            # GPT-OSS models reason before answering; low effort keeps search fast.
+            extra_body={"reasoning_effort": "low"} if "gpt-oss" in settings.groq_model else None,
         )
     if provider == "openai":
         if settings.openai_api_key is None:
