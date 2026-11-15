@@ -17,9 +17,13 @@ const PAGE_SIZE = 24
 
 function Browse() {
   const { user } = useAuth()
-  const building = useSearchParams().get('building')
+  const params0 = useSearchParams()
+  const building = params0.get('building')
+  const typeParam = params0.get('type')
   const [q, setQ] = useState('')
-  const [type, setType] = useState<ListingType | ''>('')
+  const [type, setType] = useState<ListingType | ''>(
+    TYPES.includes(typeParam as ListingType) ? (typeParam as ListingType) : '',
+  )
   const [maxRent, setMaxRent] = useState(4000)
   const [neighborhood, setNeighborhood] = useState('')
   const [availableBy, setAvailableBy] = useState('')

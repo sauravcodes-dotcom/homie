@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from 'next'
 import { Bricolage_Grotesque, Instrument_Sans } from 'next/font/google'
 import { CursorGlow } from '@/components/CursorGlow'
 import { Footer } from '@/components/Footer'
+import { MotionProvider } from '@/components/MotionProvider'
 import { Nav } from '@/components/Nav'
+import { SmoothScroll } from '@/components/SmoothScroll'
 import { AuthProvider } from '@/lib/auth'
 import './globals.css'
 
@@ -36,12 +38,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <AuthProvider>
+          <MotionProvider>
+          <SmoothScroll />
           <CursorGlow />
           <div className="relative z-10 flex min-h-dvh flex-col">
             <Nav />
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
+          </MotionProvider>
         </AuthProvider>
       </body>
     </html>

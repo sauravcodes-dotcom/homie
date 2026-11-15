@@ -1,5 +1,6 @@
 'use client'
 
+import { motion, useMotionValueEvent, useScroll, useSpring } from 'motion/react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -35,6 +36,15 @@ export function Nav() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [unread, setUnread] = useState(0)
+  // Hide while scrolling down, come back on any scroll up (and always near the top).
+  const { scrollY, scrollYProgress } = useScroll()
+  const [hidden, setHidden] = useState(false)
+  useMotionValueEvent(scrollY, 'change', (y) => {
+    const prev = scrollY.getPrevious() ?? 0
+    if (Math.abs(y - prev) < 4) return
+    setHidden(y > prev && y > 160)
+  })
+  const progress = useSpring(scrollYProgress, { stiffness: 220, damping: 32, restDelta: 0.001 })
 
   const poll = () => {
     if (!user) return
@@ -50,7 +60,12 @@ export function Nav() {
   const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-bg/75 backdrop-blur-xl">
+    <motion.header
+      className="sticky top-0 z-40 border-b border-line bg-bg/70 backdrop-blur-2xl backdrop-saturate-150"
+      animate={{ y: hidden && !open ? '-100%' : '0%' }}
+      transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+    >
+      <motion.div className="absolute inset-x-0 bottom-[-1px] h-[2px] origin-left bg-gradient-to-r from-cardinal via-gold to-gold" style={{ scaleX: progress }} aria-hidden />
       <div className="shell flex h-16 items-center justify-between gap-4">
         <Logo />
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Main">
@@ -150,6 +165,6 @@ export function Nav() {
           )}
         </nav>
       )}
-    </header>
+    </motion.header>
   )
 }

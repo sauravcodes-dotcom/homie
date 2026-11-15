@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Tilt } from './Tilt'
 import type { Listing, MatchResult } from '@/lib/api'
 import { dateRange, TYPE_LABEL, usd } from '@/lib/format'
 
@@ -28,7 +29,8 @@ export function ListingPhoto({ listing, className = '' }: { listing: Pick<Listin
 export function ListingCard({ listing, match }: { listing: Listing; match?: MatchResult }) {
   const risky = listing.risk && listing.risk.level !== 'low'
   return (
-    <Link href={`/listings/${listing.id}`} className="card card-hover group block overflow-hidden">
+    <Tilt className="h-full">
+    <Link href={`/listings/${listing.id}`} className="card card-hover group block h-full overflow-hidden">
       <div className="relative aspect-[4/3] overflow-hidden">
         <ListingPhoto listing={listing} className="size-full transition-transform duration-500 group-hover:scale-105" />
         <span className="chip absolute top-3 left-3 border-transparent bg-black/60 text-white backdrop-blur">
@@ -63,5 +65,6 @@ export function ListingCard({ listing, match }: { listing: Listing; match?: Matc
         </p>
       </div>
     </Link>
+    </Tilt>
   )
 }

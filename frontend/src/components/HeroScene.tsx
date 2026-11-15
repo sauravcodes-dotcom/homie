@@ -1,14 +1,18 @@
 'use client'
 
+import type { MotionValue } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
 const GRID = 22
 const SPACING = 1.35
 
-/** Animated low-poly skyline in cardinal and gold. Purely decorative. */
-export default function HeroScene() {
+/** Animated low-poly skyline in cardinal and gold. Purely decorative.
+ *  `progress` (0 to 1) flies the camera down into the city as the page scrolls. */
+export default function HeroScene({ progress }: { progress?: MotionValue<number> }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const progressRef = useRef(progress)
+  progressRef.current = progress
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -128,7 +132,7 @@ export default function HeroScene() {
       }
       mesh.instanceMatrix.needsUpdate = true
 
-      city.rotation.y = t * 0.045 + pointer.x * 0.28
+      city.rotation.y = t * 0.045 + pointer.x * 0.28 + (progressRef.current?.get() ?? 0) * 0.9
       points.rotation.y = -t * 0.02
       const pos = sparkGeo.attributes.position as THREE.BufferAttribute
       for (let i = 0; i < sparks; i++) {
@@ -137,8 +141,12 @@ export default function HeroScene() {
       }
       pos.needsUpdate = true
 
-      camera.position.set(pointer.x * 2.2, 8.5 - pointer.y * 1.6, 23)
-      camera.lookAt(0, 2.2, 0)
+      const p = progressRef.current?.get() ?? 0
+      const dive = p * p * (3 - 2 * p) // smoothstep
+      fog.near = 16 - dive * 12
+      fog.far = 46 - dive * 22
+      camera.position.set(pointer.x * 2.2 * (1 - dive), 8.5 - pointer.y * 1.6 - dive * 5.6, 23 - dive * 17)
+      camera.lookAt(0, 2.2 + dive * 0.8, 0)
       renderer.render(scene, camera)
     }
     tick()

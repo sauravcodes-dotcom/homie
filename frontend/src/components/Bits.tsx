@@ -1,3 +1,7 @@
+'use client'
+
+import { motion } from 'motion/react'
+import { Fragment } from 'react'
 import type { Benchmark, RiskReport } from '@/lib/api'
 import { usd } from '@/lib/format'
 
@@ -191,7 +195,23 @@ export function PageHeader({
   return (
     <header className="shell pt-12 pb-8">
       {eyebrow && <p className="text-sm font-bold tracking-widest text-accent uppercase">{eyebrow}</p>}
-      <h1 className="display mt-2 text-[clamp(2.6rem,7vw,5rem)] font-extrabold">{title}</h1>
+      <h1 className="display mt-2 text-[clamp(2.6rem,7vw,5rem)] font-extrabold">
+        {title.split(' ').map((word, i) => (
+          <Fragment key={i}>
+          {i > 0 && ' '}
+          <span className="inline-block overflow-hidden pr-[0.04em] pb-[0.06em] align-bottom">
+            <motion.span
+              className="inline-block"
+              initial={{ y: '110%', rotate: 4 }}
+              animate={{ y: '0%', rotate: 0 }}
+              transition={{ duration: 0.75, delay: 0.05 + i * 0.06, ease: [0.2, 0.9, 0.2, 1] }}
+            >
+              {word}
+            </motion.span>
+          </span>
+          </Fragment>
+        ))}
+      </h1>
       {children && <div className="mt-4 max-w-2xl text-lg text-ink-soft">{children}</div>}
     </header>
   )
