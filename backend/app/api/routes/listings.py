@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends
+from datetime import date
+from typing import Literal
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_user
@@ -9,16 +12,40 @@ from app.schemas.listing import (
     FeedbackOut,
     ListingCreate,
     ListingDetail,
-    ListingOut,
+    ListingPage,
+    ListingTypeLiteral,
 )
 from app.services import listings
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
 
-@router.get("", response_model=list[ListingOut])
-def list_all(db: Session = Depends(get_db)) -> list[ListingOut]:
-    return listings.list_listings(db)
+@router.get("", response_model=ListingPage)
+def search(
+    q: str | None = Query(default=None, max_length=100),
+    listing_type: ListingTypeLiteral | None = None,
+    neighborhood: str | None = Query(default=None, max_length=120),
+    min_rent: int | None = Query(default=None, ge=0),
+    max_rent: int | None = Query(default=None, ge=0),
+    available_by: date | None = None,
+    sort: Literal["newest", "price_asc", "price_desc", "soonest"] = "newest",
+    limit: int = Query(default=24, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> ListingPage:
+    """Search listings. Returns the total match count plus one page."""
+    return listings.search_listings(
+        db,
+        q=q,
+        listing_type=listing_type,
+        neighborhood=neighborhood,
+        min_rent=min_rent,
+        max_rent=max_rent,
+        available_by=available_by,
+        sort=sort,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.post("", response_model=ListingDetail, status_code=201)

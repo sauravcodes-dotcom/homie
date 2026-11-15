@@ -90,10 +90,10 @@ export function Home() {
           </div>
           <div className="flex flex-wrap gap-3 self-start lg:self-auto">
             <a
-              href="#/listings"
+              href="#/match"
               className="whitespace-nowrap rounded-full bg-gold px-6 py-3.5 font-semibold text-ink hover:bg-petal"
             >
-              Browse open rooms
+              Find my match
             </a>
             <a
               href="#/signin?next=/post"

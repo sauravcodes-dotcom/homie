@@ -7,6 +7,7 @@ export type Route =
   | { name: 'listings' }
   | { name: 'listing'; id: number }
   | { name: 'post' }
+  | { name: 'match' }
   | { name: 'signin'; next?: string }
 
 export function parseRoute(hash: string): Route {
@@ -18,6 +19,7 @@ export function parseRoute(hash: string): Route {
   }
   if (parts[0] === 'listings') return { name: 'listings' }
   if (parts[0] === 'post') return { name: 'post' }
+  if (parts[0] === 'match') return { name: 'match' }
   if (parts[0] === 'signin') {
     const next = new URLSearchParams(query).get('next') ?? undefined
     return { name: 'signin', next }

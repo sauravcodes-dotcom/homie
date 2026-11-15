@@ -82,3 +82,16 @@ class ListingOut(BaseModel):
 
 class ListingDetail(ListingOut):
     feedback: list[FeedbackOut]
+
+
+class ListingPage(BaseModel):
+    total: int
+    items: list[ListingOut]
+
+
+NEIGHBORHOODS = (
+    "University Park",
+    "North University Park",
+    "Figueroa Corridor",
+    "Exposition Park",
+)

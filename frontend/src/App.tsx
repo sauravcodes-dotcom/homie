@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './lib/auth'
 import { useRoute } from './lib/router'
 import { Home } from './pages/Home'
 import { ListingDetail } from './pages/ListingDetail'
+import { Match } from './pages/Match'
 import { Listings } from './pages/Listings'
 import { PostListing } from './pages/PostListing'
 import { SignIn } from './pages/SignIn'
@@ -25,6 +26,7 @@ function Layout() {
         {route.name === 'listings' && <Listings />}
         {route.name === 'listing' && <ListingDetail id={route.id} />}
         {route.name === 'post' && <PostListing />}
+        {route.name === 'match' && <Match />}
         {route.name === 'signin' && <SignIn next={route.next} />}
       </main>
       <footer className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-8 text-sm text-ink-soft sm:flex-row sm:items-center sm:justify-between sm:px-8">
@@ -46,6 +48,9 @@ function Header() {
       <nav className="flex items-center gap-5 text-sm font-medium">
         <a href="#/listings" className="hover:text-jacaranda">
           Open rooms
+        </a>
+        <a href="#/match" className="hover:text-jacaranda">
+          Find my match
         </a>
         {user ? (
           <>

@@ -1,8 +1,10 @@
 """Listings and the subleaser's roommate feedback channel."""
 
 from collections import Counter
+from datetime import date
 
-from sqlalchemy import select
+from pydantic import BaseModel
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import HomieError, NotFoundError
@@ -14,8 +16,20 @@ from app.schemas.listing import (
     ListingCreate,
     ListingDetail,
     ListingOut,
+    ListingPage,
 )
-from app.schemas.matching import Lifestyle
+from app.schemas.matching import Lifestyle, ListingCriteria, ListingMatchRequest, MatchResult
+from app.services.matching import score_match
+
+
+class ListingMatch(BaseModel):
+    listing: ListingOut
+    match: MatchResult
+
+
+class ListingMatchResponse(BaseModel):
+    scanned: int
+    results: list[ListingMatch]
 
 
 class ForbiddenError(HomieError):
@@ -23,9 +37,81 @@ class ForbiddenError(HomieError):
     code = "forbidden"
 
 
-def list_listings(db: Session) -> list[ListingOut]:
-    listings = db.scalars(select(Listing).order_by(Listing.created_at.desc())).all()
-    return [_to_out(db, listing) for listing in listings]
+SORTS = {
+    "newest": (Listing.created_at.desc(), Listing.id.desc()),
+    "price_asc": (Listing.monthly_rent.asc(), Listing.id.asc()),
+    "price_desc": (Listing.monthly_rent.desc(), Listing.id.desc()),
+    "soonest": (Listing.available_from.asc(), Listing.id.asc()),
+}
+
+
+def search_listings(
+    db: Session,
+    *,
+    q: str | None = None,
+    listing_type: str | None = None,
+    neighborhood: str | None = None,
+    min_rent: int | None = None,
+    max_rent: int | None = None,
+    available_by: date | None = None,
+    sort: str = "newest",
+    limit: int = 24,
+    offset: int = 0,
+) -> ListingPage:
+    stmt = select(Listing).outerjoin(Apartment, Apartment.id == Listing.apartment_id)
+    if q:
+        like = f"%{q.strip().lower()}%"
+        stmt = stmt.where(
+            or_(
+                func.lower(Listing.title).like(like),
+                func.lower(Apartment.address).like(like),
+                func.lower(Apartment.name).like(like),
+                func.lower(func.coalesce(Listing.unit, "")).like(like),
+            )
+        )
+    if listing_type:
+        stmt = stmt.where(Listing.listing_type == ListingType(listing_type))
+    if neighborhood:
+        stmt = stmt.where(Listing.neighborhood == neighborhood)
+    if min_rent is not None:
+        stmt = stmt.where(Listing.monthly_rent >= min_rent)
+    if max_rent is not None:
+        stmt = stmt.where(Listing.monthly_rent <= max_rent)
+    if available_by is not None:
+        stmt = stmt.where(Listing.available_from <= available_by)
+
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    rows = db.scalars(stmt.order_by(*SORTS.get(sort, SORTS["newest"])).limit(limit).offset(offset))
+    return ListingPage(total=total, items=[_to_out(db, listing) for listing in rows])
+
+
+def match_listings(db: Session, req: ListingMatchRequest) -> ListingMatchResponse:
+    """Score every listing for this seeker and return the best ones with reasons."""
+    stmt = select(Listing)
+    if req.listing_types:
+        stmt = stmt.where(Listing.listing_type.in_([ListingType(t) for t in req.listing_types]))
+    candidates = db.scalars(stmt).all()
+
+    scored = []
+    for listing in candidates:
+        criteria = ListingCriteria(
+            id=listing.id,
+            monthly_rent=listing.monthly_rent,
+            available_from=listing.available_from,
+            available_to=listing.available_to,
+            neighborhood=listing.neighborhood,
+            latitude=listing.latitude,
+            longitude=listing.longitude,
+            lifestyle=Lifestyle(**(listing.lifestyle or {})),
+        )
+        scored.append((score_match(req.seeker, criteria), listing))
+
+    scored.sort(key=lambda pair: (pair[0].score, -pair[1].monthly_rent), reverse=True)
+    top = scored[: req.limit]
+    return ListingMatchResponse(
+        scanned=len(candidates),
+        results=[ListingMatch(listing=_to_out(db, listing), match=match) for match, listing in top],
+    )
 
 
 def get_listing(db: Session, listing_id: int) -> ListingDetail:

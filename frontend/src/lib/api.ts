@@ -172,6 +172,27 @@ export type Listing = {
 
 export type ListingDetail = Listing & { feedback: Feedback[] }
 
+export type ListingPage = { total: number; items: Listing[] }
+
+export type ListingQuery = {
+  q?: string
+  listing_type?: ListingType
+  neighborhood?: string
+  max_rent?: number
+  sort?: 'newest' | 'price_asc' | 'price_desc' | 'soonest'
+  limit?: number
+  offset?: number
+}
+
+export type ListingMatch = { listing: Listing; match: MatchResult }
+
+export const NEIGHBORHOODS = [
+  'University Park',
+  'North University Park',
+  'Figueroa Corridor',
+  'Exposition Park',
+] as const
+
 export type NewListing = {
   listing_type: ListingType
   title: string
@@ -196,7 +217,19 @@ export const api = {
     request<{ token: string; user: User }>('/api/auth/verify', post({ email, code })),
   me: () => request<User>('/api/auth/me'),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
-  listings: () => request<Listing[]>('/api/listings'),
+  listings: (query: ListingQuery = {}) => {
+    const params = new URLSearchParams()
+    for (const [k, v] of Object.entries(query)) {
+      if (v !== undefined && v !== '' && v !== null) params.set(k, String(v))
+    }
+    const qs = params.toString()
+    return request<ListingPage>(`/api/listings${qs ? `?${qs}` : ''}`)
+  },
+  matchListings: (seeker: SeekerCriteria, listing_types: ListingType[], limit = 20) =>
+    request<{ scanned: number; results: ListingMatch[] }>(
+      '/api/matching/listings',
+      post({ seeker, listing_types, limit }),
+    ),
   listing: (id: number) => request<ListingDetail>(`/api/listings/${id}`),
   createListing: (data: NewListing) => request<ListingDetail>('/api/listings', post(data)),
   postFeedback: (id: number, data: { rating: number; tags: string[]; comment: string }) =>
