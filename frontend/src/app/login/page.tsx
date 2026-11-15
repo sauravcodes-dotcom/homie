@@ -17,6 +17,15 @@ function LoginForm() {
   const [demoCode, setDemoCode] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cooldown, setCooldown] = useState(0)
+  const [resent, setResent] = useState(false)
+
+  // Count down before another code can be requested (the API enforces 30 s too).
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [cooldown])
 
   useEffect(() => {
     if (!loading && user) router.replace(user.has_profile ? next : '/onboarding')
@@ -45,8 +54,18 @@ function LoginForm() {
       setEmail(res.email)
       setDemoCode(res.demo_code)
       setStep('code')
+      setCooldown(30)
     })
   }
+
+  const resend = () =>
+    void run(async () => {
+      const res = await post<CodeRequest>('/auth/request-code', { email })
+      setDemoCode(res.demo_code)
+      setCode('')
+      setResent(true)
+      setCooldown(30)
+    })
 
   const verify = (e: React.FormEvent) => {
     e.preventDefault()
@@ -73,7 +92,8 @@ function LoginForm() {
             </div>
           ) : (
             <p className="mt-3 text-ink-soft">
-              We sent a 6-digit code to <strong className="text-ink">{email}</strong>. It expires in 10 minutes.
+              We emailed a 6-digit code to <strong className="text-ink">{email}</strong>. It expires in
+              10 minutes. Check your spam or junk folder if it is not in your inbox within a minute.
             </p>
           )}
         </div>
@@ -96,17 +116,29 @@ function LoginForm() {
         <button type="submit" className="btn btn-gold py-3.5" disabled={busy || code.length !== 6}>
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
-        <button
-          type="button"
-          className="text-sm font-semibold text-accent"
-          onClick={() => {
-            setStep('email')
-            setCode('')
-            setError(null)
-          }}
-        >
-          Use a different email
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+          <button
+            type="button"
+            className="font-semibold text-accent disabled:text-ink-soft"
+            disabled={busy || cooldown > 0}
+            onClick={resend}
+          >
+            {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+          </button>
+          <button
+            type="button"
+            className="font-semibold text-accent"
+            onClick={() => {
+              setStep('email')
+              setCode('')
+              setError(null)
+              setResent(false)
+            }}
+          >
+            Use a different email
+          </button>
+        </div>
+        {resent && cooldown > 0 && <p className="text-sm text-ink-soft">A new code is on its way. Only the newest code works.</p>}
       </form>
     )
   }

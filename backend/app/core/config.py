@@ -32,11 +32,20 @@ class Settings(BaseSettings):
     login_code_ttl_minutes: int = 10
     login_code_max_attempts: int = 5
     session_days: int = 30
-    # Email delivery for login codes. Without a key, demo mode returns the
-    # code in the API response so the flow can be shown end to end.
+    # Email delivery for login codes. With neither SMTP nor Resend configured,
+    # demo mode returns the code in the API response so the flow still works.
+    # SMTP defaults to Gmail: set SMTP_USERNAME and SMTP_PASSWORD (an app password).
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 465
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_from_address: str | None = None  # defaults to SMTP_USERNAME
+    email_from_name: str = "HOMIE"
     resend_api_key: SecretStr | None = None
     email_from: str = "HOMIE <onboarding@resend.dev>"
     auth_demo_mode: bool = True
+    # Minimum seconds between two code emails to the same address.
+    login_code_cooldown_seconds: int = 30
 
     # Comma-separated list, e.g. "http://localhost:5173,https://homie.app"
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
@@ -101,8 +110,12 @@ class Settings(BaseSettings):
         return self.database_url.startswith("sqlite")
 
     @property
+    def smtp_configured(self) -> bool:
+        return bool(self.smtp_username) and self.smtp_password is not None
+
+    @property
     def email_delivery_enabled(self) -> bool:
-        return self.resend_api_key is not None
+        return self.smtp_configured or self.resend_api_key is not None
 
     @property
     def upload_root(self) -> str:

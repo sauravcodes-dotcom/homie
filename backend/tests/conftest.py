@@ -14,6 +14,9 @@ os.environ["EXTERNAL_REVIEWS_PROVIDER"] = "none"
 os.environ["ADMIN_EMAILS"] = "admin@usc.edu"
 os.environ["UPLOAD_DIR"] = os.path.join(_tmp, "uploads")
 os.environ.pop("RESEND_API_KEY", None)
+os.environ.pop("SMTP_USERNAME", None)
+os.environ.pop("SMTP_PASSWORD", None)
+os.environ["LOGIN_CODE_COOLDOWN_SECONDS"] = "0"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

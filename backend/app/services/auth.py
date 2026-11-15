@@ -12,13 +12,13 @@ import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-import httpx
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.errors import HomieError, UnauthorizedError
 from app.models import LoginCode, User, UserSession
+from app.services.email import send_login_code
 
 logger = logging.getLogger("homie")
 
@@ -27,6 +27,11 @@ _EMAIL = re.compile(r"^[a-z0-9._%+\-]+@([a-z0-9.\-]+)$")
 
 class AuthError(UnauthorizedError):
     """Kept as its own name for callers; same 401 as UnauthorizedError."""
+
+
+class TooManyRequestsError(HomieError):
+    status_code = 429
+    code = "too_many_requests"
 
 
 class EmailDomainError(HomieError):
@@ -54,6 +59,20 @@ def normalize_usc_email(raw: str, settings: Settings) -> str:
 
 def request_code(db: Session, raw_email: str, settings: Settings) -> CodeRequestResult:
     email = normalize_usc_email(raw_email, settings)
+
+    # Throttle: one code per address per cooldown window, so the button cannot
+    # be used to flood someone's inbox or burn the daily sending quota.
+    last = db.scalars(
+        select(LoginCode).where(LoginCode.email == email).order_by(LoginCode.id.desc()).limit(1)
+    ).first()
+    if last is not None and settings.login_code_cooldown_seconds > 0:
+        waited = (_now() - _aware(last.created_at)).total_seconds()
+        if waited < settings.login_code_cooldown_seconds:
+            wait = int(settings.login_code_cooldown_seconds - waited) + 1
+            raise TooManyRequestsError(
+                f"A code was just sent. Wait {wait} seconds before asking again."
+            )
+
     code = f"{secrets.randbelow(1_000_000):06d}"
 
     # Only the newest code is valid.
@@ -68,7 +87,7 @@ def request_code(db: Session, raw_email: str, settings: Settings) -> CodeRequest
     db.commit()
 
     if settings.email_delivery_enabled:
-        _send_code_email(email, code, settings)
+        send_login_code(email, code, settings)
         return CodeRequestResult(email=email, delivered_by_email=True, demo_code=None)
     if settings.auth_demo_mode:
         return CodeRequestResult(email=email, delivered_by_email=False, demo_code=code)
@@ -129,30 +148,6 @@ def revoke_token(db: Session, token: str) -> None:
     if session:
         db.delete(session)
         db.commit()
-
-
-def _send_code_email(email: str, code: str, settings: Settings) -> None:
-    assert settings.resend_api_key is not None
-    try:
-        resp = httpx.post(
-            "https://api.resend.com/emails",
-            headers={"Authorization": f"Bearer {settings.resend_api_key.get_secret_value()}"},
-            json={
-                "from": settings.email_from,
-                "to": [email],
-                "subject": f"Your HOMIE sign-in code: {code}",
-                "text": (
-                    f"Your HOMIE sign-in code is {code}. It expires in "
-                    f"{settings.login_code_ttl_minutes} minutes.\n\n"
-                    "If you did not request this, you can ignore this email."
-                ),
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-    except httpx.HTTPError as exc:
-        logger.warning("Sending login code failed: %s", exc)
-        raise HomieError("Could not send the sign-in email. Try again in a minute.") from exc
 
 
 def _hash(value: str, settings: Settings) -> str:
