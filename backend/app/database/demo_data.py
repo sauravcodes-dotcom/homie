@@ -10,6 +10,8 @@ import random
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
+from app.services.housing.geo import travel_to_campus
+
 DEMO_EMAIL_DOMAIN = "homie-demo.invalid"  # reserved TLD: can never be a real inbox
 
 
@@ -356,12 +358,8 @@ def generate(count: int, seed: int = 2026) -> list[DemoListing]:
             lifestyle["personality"] = personality
 
         features = rng.sample(FEATURES, k=3)
-        walk = rng.randint(4, 22)
+        rng.randint(4, 22)  # kept so the rest of the generated data stays the same
         reason = rng.choice(REASONS)
-        description = (
-            f"I'm {reason}, so this is open. {features[0].capitalize()}, {features[1]}, "
-            f"and {features[2]}. About a {walk}-minute walk to campus. Demo listing."
-        )
 
         notes: list[dict] = []
         if ltype != "lease_takeover" and rng.random() < 0.45:
@@ -375,17 +373,27 @@ def generate(count: int, seed: int = 2026) -> list[DemoListing]:
                     }
                 )
 
+        owner = rng.randrange(owners)  # drawn in the same order as before
+        lat = round(street.lat + rng.uniform(-1, 1) * street.span[0], 5)
+        lng = round(street.lng + rng.uniform(-1, 1) * street.span[1], 5)
+        # The walk time in the text must match the one HOMIE computes and shows on the card.
+        walk = travel_to_campus(lat, lng).walk_minutes
+        description = (
+            f"I'm {reason}, so this is open. {features[0].capitalize()}, {features[1]}, "
+            f"and {features[2]}. About a {walk}-minute walk to campus. Demo listing."
+        )
+
         out.append(
             DemoListing(
-                owner_index=rng.randrange(owners),
+                owner_index=owner,
                 listing_type=ltype,
                 title=title_tpl.format(beds=beds, street=street.name),
                 description=description,
                 address=address,
                 unit=unit,
                 neighborhood=street.neighborhood,
-                latitude=round(street.lat + rng.uniform(-1, 1) * street.span[0], 5),
-                longitude=round(street.lng + rng.uniform(-1, 1) * street.span[1], 5),
+                latitude=lat,
+                longitude=lng,
                 monthly_rent=rent,
                 available_from=start,
                 available_to=end,
