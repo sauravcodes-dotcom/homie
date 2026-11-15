@@ -13,7 +13,17 @@ from app.services.llm.base import LLMProvider, Message
 class OpenAIProvider(LLMProvider):
     name = "openai"
 
-    def __init__(self, *, api_key: str, model: str, base_url: str, timeout: float = 30.0):
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        model: str,
+        base_url: str,
+        timeout: float = 30.0,
+        name: str = "openai",
+    ):
+        self.name = name
+        self.model = model
         self._model = model
         self._client = httpx.Client(
             base_url=base_url.rstrip("/"),

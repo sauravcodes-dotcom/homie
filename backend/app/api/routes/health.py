@@ -25,6 +25,6 @@ def health() -> HealthResponse:
         database="ok" if db_ok else "unavailable",
         storage=storage,
         auth_mode="email" if settings.email_delivery_enabled else "demo",
-        llm_provider=settings.llm_provider,
+        llm_provider=settings.effective_llm_provider,
         embedding_provider=settings.embedding_provider,
     )

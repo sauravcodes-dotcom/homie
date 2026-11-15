@@ -62,13 +62,18 @@ class Settings(BaseSettings):
 
     # AI providers. "mock" needs no API key and is deterministic, which keeps
     # local development, tests and CI free of external calls.
-    llm_provider: Literal["mock", "openai"] = "mock"
+    # "mock" switches to Groq automatically when GROQ_API_KEY is set.
+    llm_provider: Literal["mock", "openai", "groq"] = "mock"
     llm_model: str = "gpt-4o-mini"
     embedding_provider: Literal["hashing", "openai"] = "hashing"
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = Field(default=384, gt=0)
 
     openai_api_key: SecretStr | None = None
+    # Groq: free tier, OpenAI-compatible API. Only the key is needed.
+    groq_api_key: SecretStr | None = None
+    groq_model: str = "llama-3.3-70b-versatile"
+    groq_base_url: str = "https://api.groq.com/openai/v1"
     openai_base_url: str = "https://api.openai.com/v1"
     ai_request_timeout_seconds: float = 30.0
 
@@ -84,6 +89,12 @@ class Settings(BaseSettings):
         if self.vercel:
             return "sqlite:////tmp/homie.db"
         return "postgresql+psycopg://homie:homie@localhost:5432/homie"
+
+    @property
+    def effective_llm_provider(self) -> str:
+        if self.llm_provider == "mock" and self.groq_api_key is not None:
+            return "groq"
+        return self.llm_provider
 
     @property
     def is_sqlite(self) -> bool:

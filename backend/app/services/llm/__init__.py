@@ -8,7 +8,18 @@ from app.services.llm.openai_provider import OpenAIProvider
 
 
 def build_llm_provider(settings: Settings) -> LLMProvider:
-    if settings.llm_provider == "openai":
+    provider = settings.effective_llm_provider
+    if provider == "groq":
+        if settings.groq_api_key is None:
+            raise HomieError("LLM_PROVIDER=groq requires GROQ_API_KEY")
+        return OpenAIProvider(
+            api_key=settings.groq_api_key.get_secret_value(),
+            model=settings.groq_model,
+            base_url=settings.groq_base_url,
+            timeout=settings.ai_request_timeout_seconds,
+            name="groq",
+        )
+    if provider == "openai":
         if settings.openai_api_key is None:
             raise HomieError("LLM_PROVIDER=openai requires OPENAI_API_KEY")
         return OpenAIProvider(

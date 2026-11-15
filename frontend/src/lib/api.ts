@@ -411,3 +411,31 @@ export type Verification = {
   created_at: string
   has_document: boolean
 }
+
+export type Understood = {
+  summary?: string | null
+  budget_max?: number | null
+  move_in?: string | null
+  move_out?: string | null
+  preferred_neighborhoods: string[]
+  near_campus: boolean
+  max_distance_miles?: number | null
+  listing_types: string[]
+  sleep_schedule?: 'early' | 'flexible' | 'late' | null
+  cleanliness?: number | null
+  noise_tolerance?: number | null
+  smoking?: boolean | null
+  drinking?: boolean | null
+  pets?: boolean | null
+  diet?: 'veg' | 'non_veg' | null
+  must_haves: string[]
+}
+
+export type AISearchResponse = {
+  understood: Understood
+  used_model: boolean
+  model: string | null
+  note: string | null
+  scanned: number
+  results: (FeedItem & { why: string; feature_hits: string[] })[]
+}

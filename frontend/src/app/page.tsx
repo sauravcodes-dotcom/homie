@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { AISearchBox } from '@/components/AISearch'
 import { Hero } from '@/components/Hero'
 import { Magnetic } from '@/components/Magnetic'
 import { MatchDemo } from '@/components/MatchDemo'
@@ -56,6 +57,22 @@ export default function Home() {
   return (
     <>
       <Hero />
+
+      <section className="shell py-16">
+        <div className="card grid items-start gap-8 p-6 sm:p-10 lg:grid-cols-[1fr_1.2fr]">
+          <div>
+            <p className="text-sm font-bold tracking-widest text-accent uppercase">AI matching</p>
+            <h2 className="display mt-3 text-[clamp(2.2rem,5vw,3.8rem)] font-extrabold">
+              Find apartments with <span className="hl">AI.</span>
+            </h2>
+            <p className="mt-5 max-w-lg text-lg leading-relaxed text-ink-soft">
+              Say what you need: budget, dates, area, how you live, must-haves. HOMIE reads it,
+              scores every open listing near campus and tells you why its top picks fit.
+            </p>
+          </div>
+          <AISearchBox goTo />
+        </div>
+      </section>
 
       <div className="overflow-hidden border-b border-line bg-cardinal py-4 text-gold" aria-hidden>
         <div className="marquee-track">

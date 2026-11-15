@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { AIMatch } from '@/components/AISearch'
 import { Empty, ErrorNote, PageHeader } from '@/components/Bits'
 import { ListingCard } from '@/components/ListingCard'
 import { post, type FeedItem, type Lifestyle, type ListingMatchResponse, type ListingType } from '@/lib/api'
@@ -87,9 +88,15 @@ export default function MatchPage() {
   return (
     <>
       <PageHeader eyebrow="No account needed" title="Find my match">
-        Tell HOMIE what you need. It scores every open listing on rent, dates, location and how
-        you live, then shows the best fits and why.
+        Describe what you need in plain English. HOMIE's AI reads it, scores every open listing
+        on rent, dates, location and how you live, then explains its top picks.
       </PageHeader>
+
+      <AIMatch />
+
+      <div className="shell pb-6">
+        <h2 className="display text-3xl font-extrabold">Or set preferences by hand</h2>
+      </div>
 
       <div className="shell grid items-start gap-8 pb-24 lg:grid-cols-[22rem_1fr]">
         <form onSubmit={submit} className="card grid gap-6 p-6 lg:sticky lg:top-24">
