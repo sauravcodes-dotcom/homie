@@ -105,7 +105,7 @@ export function LetterZoom() {
   }
 
   return (
-    <section ref={ref} className="relative h-[280vh]">
+    <section ref={ref} className="relative h-[210vh]">
       <div className="sticky top-0 h-dvh overflow-hidden">
         <div className="absolute inset-0"><Stats run={revealed} /></div>
         <motion.svg

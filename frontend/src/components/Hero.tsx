@@ -36,7 +36,7 @@ export function Hero() {
   const veil = useTransform(scrollYProgress, [0.7, 1], [0, 1])
 
   return (
-    <section ref={ref} className={`relative -mt-16 ${reduce ? '' : 'h-[220vh]'}`}>
+    <section ref={ref} className={`relative -mt-16 ${reduce ? '' : 'h-[170vh]'}`}>
       <div className="grain sticky top-0 isolate h-dvh overflow-hidden">
         <motion.div
           className="hero-fallback absolute inset-0 -z-10"

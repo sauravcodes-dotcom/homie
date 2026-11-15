@@ -432,7 +432,7 @@
   --ld-mark: color-mix(in srgb, var(--gold) 32%, transparent);
   --ld-bad: var(--cardinal-text);
   position: relative;
-  height: 520vh;
+  height: 380vh;
   font-variant-numeric: tabular-nums;
 }
 :root[data-theme='light'] .ld {

@@ -50,7 +50,7 @@ export function FinalCta() {
   }
 
   return (
-    <section ref={ref} className="relative h-[170vh]">
+    <section ref={ref} className="relative h-[140vh]">
       <div className="sticky top-0 flex h-dvh items-center justify-center overflow-hidden">
         <motion.div
           className="absolute bg-cardinal"

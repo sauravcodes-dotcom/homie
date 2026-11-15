@@ -10,8 +10,9 @@ import { scrollPageTo } from '@/components/SmoothScroll'
      up as a filter, a line sweeps while it "generates", then the ranked ledger builds in.
   2. After the clip, scroll drives the walkthrough: matches (drag the budget and everything
      re-ranks), the top building's evidence, a roommate comparison, then a real search box.
-  Scrolling down into the section holds the page at the stage until the clip has played, however
-  hard the scroll ("Skip intro" or Escape release it early). Landing past the section without
+  Scrolling down into the section stops at the stage, however hard the scroll, so a fling cannot
+  skip the clip. After a short look, the next scroll down skips the rest ("Skip intro" and Escape
+  work too), so the page never feels stuck. Landing past the section without
   scrolling through it (reload, link) shows the end state instead of pulling the page back.
 */
 
@@ -67,7 +68,9 @@ const TABS = [
 // Scroll ranges per pane once the clip is done. The describe pane only exists inside the clip.
 const RANGES: ([number, number] | null)[] = [null, [-1, 0.42], [0.42, 0.63], [0.63, 0.85], [0.85, 1.01]]
 const HOLD = 0.12 // landing beyond this without scrolling through the section skips the clip
-// Keys that scroll the page down; blocked while the page is held at the clip.
+const MIN_WATCH = 1500 // ms of clip everyone sees before a new scroll may skip the rest
+const GESTURE_GAP = 250 // ms without wheel events that ends a wheel gesture (and its momentum)
+// Keys that scroll the page down; held back during the first MIN_WATCH ms of the clip.
 const DOWN_KEYS = new Set([' ', 'PageDown', 'ArrowDown', 'End'])
 
 const usd = (n: number) => '$' + n.toLocaleString('en-US')
@@ -284,27 +287,40 @@ export function LiveDemo() {
     const held = () => playing() && el.getBoundingClientRect().top <= 1
     const holdTop = () => window.scrollY + el.getBoundingClientRect().top
 
+    // The scroll that brings the visitor here stops at the clip. After a short look, the next
+    // deliberate scroll down (a new wheel gesture, a new swipe, a key) skips the rest and moves on.
+    const canSkip = (now: number) => now - t0 > MIN_WATCH
+
     const onKey = (e: KeyboardEvent) => {
       if (playing() && e.key === 'Escape') finish()
       const t = e.target as HTMLElement | null
       if (held() && DOWN_KEYS.has(e.key) && !t?.closest?.('input, textarea, select, button, [contenteditable]')) {
-        e.preventDefault()
+        if (canSkip(e.timeStamp)) finish()
+        else e.preventDefault()
       }
     }
     window.addEventListener('keydown', onKey)
-    // Capture phase, so the wheel never reaches Lenis while the page is held.
+    // Capture phase, so a swallowed wheel never reaches Lenis. Wheel events less than GESTURE_GAP
+    // apart (including trackpad momentum) belong to one gesture.
+    let lastWheel = -Infinity
     const onWheel = (e: WheelEvent) => {
-      if (held() && e.deltaY > 0) {
-        e.preventDefault()
-        e.stopPropagation()
-      }
+      const fresh = e.timeStamp - lastWheel > GESTURE_GAP
+      lastWheel = e.timeStamp
+      if (!held() || e.deltaY <= 0) return
+      if (fresh && canSkip(e.timeStamp)) return finish()
+      e.preventDefault()
+      e.stopPropagation()
     }
     let touchY = 0
+    let touchSkips = false
     const onTouchStart = (e: TouchEvent) => {
       touchY = e.touches[0]?.clientY ?? 0
+      touchSkips = held() && canSkip(e.timeStamp)
     }
     const onTouchMove = (e: TouchEvent) => {
-      if (held() && (e.touches[0]?.clientY ?? touchY) < touchY) e.preventDefault()
+      if (!held() || (e.touches[0]?.clientY ?? touchY) >= touchY) return
+      if (touchSkips) finish()
+      else e.preventDefault()
     }
 
     /* ---------- After the clip, scroll drives the walkthrough ---------- */

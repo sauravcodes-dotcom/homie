@@ -19,7 +19,8 @@ export function SmoothScroll() {
   useEffect(() => {
     if (!window.matchMedia('(pointer: fine)').matches) return
     const lenis = new Lenis({
-      lerp: 0.11,
+      // Higher lerp tracks the wheel more closely; low values feel floaty and slow to stop.
+      lerp: 0.2,
       autoRaf: true,
       anchors: { offset: -88 },
       allowNestedScroll: true,

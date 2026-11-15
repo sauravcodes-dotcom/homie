@@ -27,7 +27,7 @@ export function WordReveal() {
   const span = 0.8 / words.length
 
   return (
-    <section ref={ref} className={`relative ${reduce ? 'py-24' : 'h-[260vh]'}`} aria-label="Why HOMIE">
+    <section ref={ref} className={`relative ${reduce ? 'py-24' : 'h-[200vh]'}`} aria-label="Why HOMIE">
       <div className={`${reduce ? '' : 'sticky top-0 flex h-dvh items-center'}`}>
         <p className="shell display max-w-6xl text-[clamp(2.1rem,5.4vw,4.9rem)] font-extrabold">
           {reduce
