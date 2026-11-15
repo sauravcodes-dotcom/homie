@@ -51,7 +51,9 @@ def send_login_code(to: str, code: str, settings: Settings) -> None:
   </table>
 </body></html>"""
 
-    if settings.smtp_configured:
+    if settings.relay_configured:
+        _send_relay(to, subject, text, html, settings)
+    elif settings.smtp_configured:
         _send_smtp(to, subject, text, html, settings)
     elif settings.resend_api_key is not None:
         _send_resend(to, subject, text, html, settings)
@@ -111,6 +113,32 @@ def _deliver(host: str, port: int, username: str, password: str, msg: EmailMessa
             smtp.ehlo()
             smtp.login(username, password)
             smtp.send_message(msg)
+
+
+def _send_relay(to: str, subject: str, text: str, html: str, settings: Settings) -> None:
+    """POST to the Google Apps Script relay, which sends with the owner's Gmail."""
+    assert settings.email_relay_url and settings.email_relay_secret is not None
+    payload = {
+        "secret": settings.email_relay_secret.get_secret_value(),
+        "to": to,
+        "subject": subject,
+        "text": text,
+        "html": html,
+        "name": settings.email_from_name,
+    }
+    try:
+        # Apps Script answers a POST with a redirect to the result; follow it.
+        resp = httpx.post(settings.email_relay_url, json=payload, timeout=20, follow_redirects=True)
+        resp.raise_for_status()
+        body = resp.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("Email relay request failed: %r", exc)
+        raise EmailDeliveryError(
+            "Could not send the sign-in email. Try again in a minute."
+        ) from exc
+    if not body.get("ok"):
+        logger.warning("Email relay refused the message: %s", body.get("error"))
+        raise EmailDeliveryError("Could not send the sign-in email. Try again in a minute.")
 
 
 def _send_resend(to: str, subject: str, text: str, html: str, settings: Settings) -> None:

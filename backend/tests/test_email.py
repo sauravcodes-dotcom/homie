@@ -105,3 +105,61 @@ def test_falls_back_to_starttls_when_465_drops(client, smtp, monkeypatch):
     assert resp.status_code == 200
     conn, msg = smtp.sent[0]
     assert conn.port == 587 and conn.tls is True
+
+
+def test_relay_is_used_when_configured(client, smtp, monkeypatch):
+    import json as _json
+
+    import httpx
+
+    from app.services import email as email_service
+
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            seen.append(_json.loads(request.content))
+            # Apps Script replies to POST with a redirect to the result.
+            return httpx.Response(302, headers={"location": "https://relay.example/result"})
+        return httpx.Response(200, json={"ok": True, "remaining_today": 99})
+
+    real_post = httpx.post
+
+    def fake_post(url, **kwargs):
+        with httpx.Client(transport=httpx.MockTransport(handler)) as c:
+            return c.post(
+                url, json=kwargs["json"], follow_redirects=kwargs.get("follow_redirects", False)
+            )
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "email_relay_url", "https://script.google.com/macros/s/x/exec")
+    monkeypatch.setattr(settings, "email_relay_secret", type(settings.secret_key)("s3cret"))
+    monkeypatch.setattr(email_service.httpx, "post", fake_post)
+
+    resp = client.post("/api/auth/request-code", json={"email": "relay.test@usc.edu"})
+    assert resp.status_code == 200
+    assert resp.json()["demo_code"] is None
+    assert seen[0]["secret"] == "s3cret"
+    assert seen[0]["to"] == "relay.test@usc.edu"
+    code = seen[0]["subject"].split()[0]
+    assert code in seen[0]["text"] and code in seen[0]["html"]
+    assert smtp.sent == []  # relay takes priority over SMTP
+    assert real_post is not fake_post
+
+
+def test_relay_refusal_is_reported(client, monkeypatch):
+    import httpx
+
+    from app.services import email as email_service
+
+    def fake_post(url, **kwargs):
+        return httpx.Response(
+            200, json={"ok": False, "error": "unauthorized"}, request=httpx.Request("POST", url)
+        )
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "email_relay_url", "https://script.google.com/macros/s/x/exec")
+    monkeypatch.setattr(settings, "email_relay_secret", type(settings.secret_key)("wrong"))
+    monkeypatch.setattr(email_service.httpx, "post", fake_post)
+    resp = client.post("/api/auth/request-code", json={"email": "relay.refused@usc.edu"})
+    assert resp.status_code == 502

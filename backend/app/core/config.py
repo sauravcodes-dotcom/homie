@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # Email delivery for login codes. With neither SMTP nor Resend configured,
     # demo mode returns the code in the API response so the flow still works.
     # SMTP defaults to Gmail: set SMTP_USERNAME and SMTP_PASSWORD (an app password).
+    # Preferred on Vercel: HTTPS relay (Google Apps Script, see docs/email-relay.gs)
+    # because serverless functions cannot reliably reach SMTP servers.
+    email_relay_url: str | None = None
+    email_relay_secret: SecretStr | None = None
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 465
     smtp_username: str | None = None
@@ -116,8 +120,12 @@ class Settings(BaseSettings):
         return bool(self.smtp_username) and self.smtp_password is not None
 
     @property
+    def relay_configured(self) -> bool:
+        return bool(self.email_relay_url) and self.email_relay_secret is not None
+
+    @property
     def email_delivery_enabled(self) -> bool:
-        return self.smtp_configured or self.resend_api_key is not None
+        return self.relay_configured or self.smtp_configured or self.resend_api_key is not None
 
     @property
     def upload_root(self) -> str:
