@@ -1,11 +1,9 @@
 'use client'
 
-import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'motion/react'
+import { motion } from 'motion/react'
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
 import { Stars } from '@/components/Bits'
 import { ScoreRing } from '@/components/Match'
-import { addBeat } from '@/components/SmoothScroll'
 
 function PhoneChrome({ children }: { children: React.ReactNode }) {
   return (
@@ -118,77 +116,49 @@ function Phone({ index }: { index: number }) {
   return (
     <div className="relative mx-auto aspect-[9/18.5] w-full max-w-[19rem] rounded-[3.2rem] border-[10px] border-[#1a0808] bg-surface shadow-[0_60px_120px_-40px_rgba(0,0,0,0.9),inset_0_0_0_2px_rgba(255,204,0,0.25)]">
       <div className="absolute inset-0 overflow-hidden rounded-[2.6rem]">
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.div
-            key={index}
-            className="absolute inset-0"
-            initial={{ opacity: 0, y: 40, scale: 0.96, filter: 'blur(8px)' }}
-            animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: -40, scale: 0.96, filter: 'blur(8px)' }}
-            transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
-          >
-            <PhoneChrome><Screen /></PhoneChrome>
-          </motion.div>
-        </AnimatePresence>
+        <PhoneChrome><Screen /></PhoneChrome>
       </div>
     </div>
   )
 }
 
-/** Apple-style feature tour: steps scroll past a pinned phone whose screen changes. On wide
- *  screens each step is a beat, so the page settles with one step centred beside its screen. */
+/** Feature tour: one row per feature, each with its own phone, alternating sides. Rows fade
+ *  in as they arrive; the page scrolls straight through. */
 export function DeviceTour() {
-  const [active, setActive] = useState(0)
-  useEffect(() => {
-    const steps = stepsRef.current?.children
-    if (!steps || !window.matchMedia('(min-width: 1024px)').matches) return
-    const off = Array.from(steps, (el) => addBeat(el as HTMLElement, 'center'))
-    return () => off.forEach((f) => f())
-  }, [])
-  // The active step is whichever one is under the middle of the screen. Derived from scroll
-  // position (not visibility events) so it is right even after a jump or a reload mid-page.
-  const stepsRef = useRef<HTMLDivElement>(null)
-  const { scrollYProgress } = useScroll({ target: stepsRef, offset: ['start center', 'end center'] })
-  useMotionValueEvent(scrollYProgress, 'change', (v) =>
-    setActive(Math.min(STEPS.length - 1, Math.max(0, Math.floor(v * STEPS.length)))),
-  )
   return (
-    <section className="relative" aria-label="What HOMIE does">
-      <div className="shell lg:grid lg:grid-cols-[1fr_1fr] lg:gap-16">
-        <div ref={stepsRef}>
-          {STEPS.map((s, i) => (
-            <motion.div
-              key={s.title}
-              className="flex min-h-[75vh] flex-col justify-center py-16 lg:[scroll-snap-align:center]"
-              animate={{ opacity: active === i ? 1 : 0.25 }}
-              transition={{ duration: 0.4 }}
-            >
-              <p className="text-sm font-bold tracking-[0.25em] text-accent uppercase">
-                {s.kicker}
-              </p>
+    <section className="py-20 sm:py-28" aria-label="What HOMIE does">
+      <div className="shell grid gap-24 lg:gap-32">
+        {STEPS.map((s, i) => (
+          <motion.div
+            key={s.title}
+            className="relative grid items-center gap-12 lg:grid-cols-2 lg:gap-20"
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.7, ease: [0.2, 0.9, 0.2, 1] }}
+          >
+            <div className={i % 2 ? 'lg:order-2' : ''}>
+              <p className="text-sm font-bold tracking-[0.25em] text-accent uppercase">{s.kicker}</p>
               <h2 className="display mt-4 text-[clamp(2.6rem,6vw,5rem)] font-extrabold">{s.title}</h2>
               <p className="mt-5 max-w-md text-lg leading-relaxed text-ink-soft">{s.body}</p>
               <Link href={s.href} className="group mt-6 inline-flex w-fit items-center gap-2 font-bold text-accent">
                 {s.cta}
                 <span className="transition-transform group-hover:translate-x-1.5" aria-hidden>→</span>
               </Link>
-              <div className="mt-10 lg:hidden"><Phone index={i} /></div>
-            </motion.div>
-          ))}
-        </div>
-        <div className="hidden lg:block">
-          <div className="sticky top-0 flex h-dvh items-center justify-center">
-            <motion.div
-              className="pointer-events-none absolute size-[34rem] rounded-full blur-[120px]"
-              animate={{ backgroundColor: STEPS[active].glow, opacity: 0.35 }}
-              transition={{ duration: 0.8 }}
-              aria-hidden
-            />
-            <div className="relative w-[19rem]">
-              <Phone index={active} />
             </div>
-          </div>
-        </div>
+            <div className="relative flex justify-center">
+              {/* Soft glow behind the phone, drawn as a gradient (a large CSS blur is costly). */}
+              <div
+                className="pointer-events-none absolute top-1/2 left-1/2 size-[40rem] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-35"
+                style={{ background: `radial-gradient(circle at center, ${s.glow} 0%, ${s.glow} 22%, transparent 68%)` }}
+                aria-hidden
+              />
+              <div className="relative w-full max-w-[19rem]">
+                <Phone index={i} />
+              </div>
+            </div>
+          </motion.div>
+        ))}
       </div>
     </section>
   )

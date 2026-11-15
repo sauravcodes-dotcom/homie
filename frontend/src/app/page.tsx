@@ -7,10 +7,9 @@ import { WordReveal } from '@/components/home/WordReveal'
 
 const TICKER = ['Subleases', 'Lease takeovers', 'Rooms', 'Roommates', 'Building reviews', 'Trojans housing Trojans']
 
-/* The page is a short run of beats, each of which lands and holds before the next one starts:
-   the promise (Hero), the problem and the turn (WordReveal), the product working (LiveDemo, the
-   peak and the longest section), what else it does (DeviceTour), the ways in (HorizontalTypes),
-   and the close (FinalCta). See components/home/Beat.tsx for how the page settles on each. */
+/* A straight scroll, top to bottom, with nothing pinned or held: the promise (Hero), the problem
+   and the turn (WordReveal), the product working (LiveDemo), what else it does (DeviceTour), the
+   ways in (HorizontalTypes), and the close (FinalCta). Sections animate in once as they arrive. */
 export default function Home() {
   return (
     <>

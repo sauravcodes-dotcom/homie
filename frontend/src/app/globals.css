@@ -79,15 +79,10 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
+    /* Keeps anchor targets clear of the sticky nav. */
+    scroll-padding-top: 88px;
   }
-  /* Beats (see components/home/Beat.tsx). With Lenis its Snap plugin settles the page; on touch,
-     where Lenis is off, native proximity snapping does the same job. */
-  html:not(.lenis):has(.beat) {
-    scroll-snap-type: y proximity;
-  }
-  .beat-start { scroll-snap-align: start; }
-  .beat-center { scroll-snap-align: center; }
-  .beat-end { scroll-snap-align: end; }
+
   body {
     min-height: 100dvh;
     overflow-x: hidden;
@@ -313,15 +308,18 @@
 
 /* Soft cardinal light that follows the pointer (set by CursorGlow). */
 .cursor-glow {
+  /* Moved with transform, so following the pointer never repaints the whole viewport. */
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 1040px;
+  height: 1040px;
+  margin: -520px 0 0 -520px;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(
-    520px circle at var(--mx, 50%) var(--my, -20%),
-    var(--glow),
-    transparent 65%
-  );
+  background: radial-gradient(circle at center, var(--glow), transparent 65%);
+  transform: translate3d(var(--mx, 50vw), var(--my, -20vh), 0);
+  will-change: transform;
   opacity: 0.55;
   transition: opacity 0.4s;
 }
@@ -440,7 +438,6 @@
   --ld-mark: color-mix(in srgb, var(--gold) 32%, transparent);
   --ld-bad: var(--cardinal-text);
   position: relative;
-  height: 340vh; /* keep LD_VH in LiveDemo.tsx in step */
   font-variant-numeric: tabular-nums;
 }
 :root[data-theme='light'] .ld {
@@ -452,9 +449,9 @@
   }
 }
 .ld-stage {
-  position: sticky;
-  top: 0;
-  height: 100svh;
+  /* A normal one-screen panel the page scrolls straight past (no pinning). */
+  position: relative;
+  height: min(100svh, 58rem);
   overflow: hidden;
 }
 .ld-app {

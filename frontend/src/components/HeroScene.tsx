@@ -21,11 +21,13 @@ export default function HeroScene({ progress }: { progress?: MotionValue<number>
 
     let renderer: THREE.WebGLRenderer
     try {
-      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
+      // On high-density screens the extra pixels already smooth edges, so MSAA is skipped there.
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: window.devicePixelRatio < 1.5, alpha: true })
     } catch {
       return // No WebGL: the CSS gradient behind the canvas stays visible.
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75))
+    // Full-screen lit scene: 1.25x looks the same behind the fog and gradients, half the pixels of 1.75x.
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25))
 
     const readBg = () =>
       new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#0c0505')

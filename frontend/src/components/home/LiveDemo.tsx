@@ -2,8 +2,6 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
-import { scrollPageTo } from '@/components/SmoothScroll'
-import { Beat, beatTop } from './Beat'
 
 /*
   The product, running on sample data.
@@ -66,16 +64,12 @@ const TABS = [
   { id: 'start', label: 'Start', at: 1 },
 ]
 
-// Scroll ranges per pane once the clip is done. The describe pane only exists inside the clip.
+// Progress ranges per pane once the clip is done (0 to 1 across the walkthrough). The describe
+// pane only exists inside the clip. Progress is driven by the tabs and a short autoplay, never
+// by page scroll: the section is a normal block the page scrolls straight past.
 const RANGES: ([number, number] | null)[] = [null, [-1, 0.42], [0.42, 0.63], [0.63, 0.85], [0.85, 1.01]]
-const LD_VH = 340 // the section's height (.ld in globals.css)
-// Where each pane is fully composed: the clip, building profile, roommate fit, describe.
-const BEATS = [0, 0.6, 0.76, 0.97]
-const HOLD = 0.12 // landing beyond this without scrolling through the section skips the clip
-const MIN_WATCH = 1500 // ms of clip everyone sees before a new scroll may skip the rest
-const GESTURE_GAP = 250 // ms without wheel events that ends a wheel gesture (and its momentum)
-// Keys that scroll the page down; held back during the first MIN_WATCH ms of the clip.
-const DOWN_KEYS = new Set([' ', 'PageDown', 'ArrowDown', 'End'])
+// Where each tab starts its pane, and where its pane animation ends.
+const TAB_SPANS: ([number, number] | null)[] = [null, [0.02, 0.4], [0.43, 0.6], [0.635, 0.72], [0.86, 1]]
 
 const usd = (n: number) => '$' + n.toLocaleString('en-US')
 const clamp = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v))
@@ -262,14 +256,16 @@ export function LiveDemo() {
       })
       tabs.forEach((t, i) => setTab(t, i === (ms < T.swap ? 0 : 1)))
     }
-    function finish() {
+    function finish(autoplay = true) {
       cancelAnimationFrame(raf)
       started = true
       frame(T.end)
       done = true
       rowEls.forEach((r) => (r.style.opacity = ''))
       status(`Top match <b>${topName.textContent}</b>, at ${usd(budget)}`)
+      cur = TAB_SPANS[1]![0]
       render(cur)
+      if (autoplay) playSpan(1, 3600)
     }
     function play() {
       cancelAnimationFrame(raf)
@@ -285,53 +281,12 @@ export function LiveDemo() {
       }
       raf = requestAnimationFrame(step)
     }
-    /* ---------- Holding the page while the clip plays ---------- */
-    // The stage is sticky, so a page held at the section's top looks exactly like a docked stage.
-    const playing = () => started && !done
-    const held = () => playing() && el.getBoundingClientRect().top <= 1
-    const holdTop = () => window.scrollY + el.getBoundingClientRect().top
-
-    // The scroll that brings the visitor here stops at the clip. After a short look, the next
-    // deliberate scroll down (a new wheel gesture, a new swipe, a key) skips the rest and moves on.
-    const canSkip = (now: number) => now - t0 > MIN_WATCH
-
     const onKey = (e: KeyboardEvent) => {
-      if (playing() && e.key === 'Escape') finish()
-      const t = e.target as HTMLElement | null
-      if (held() && DOWN_KEYS.has(e.key) && !t?.closest?.('input, textarea, select, button, [contenteditable]')) {
-        if (canSkip(e.timeStamp)) finish()
-        else e.preventDefault()
-      }
+      if (started && !done && e.key === 'Escape') finish()
     }
     window.addEventListener('keydown', onKey)
-    // Capture phase, so a swallowed wheel never reaches Lenis. Wheel events less than GESTURE_GAP
-    // apart (including trackpad momentum) belong to one gesture.
-    let lastWheel = -Infinity
-    const onWheel = (e: WheelEvent) => {
-      const fresh = e.timeStamp - lastWheel > GESTURE_GAP
-      lastWheel = e.timeStamp
-      if (!held() || e.deltaY <= 0) return
-      if (fresh && canSkip(e.timeStamp)) return finish()
-      e.preventDefault()
-      e.stopPropagation()
-    }
-    let touchY = 0
-    let touchSkips = false
-    const onTouchStart = (e: TouchEvent) => {
-      touchY = e.touches[0]?.clientY ?? 0
-      touchSkips = held() && canSkip(e.timeStamp)
-    }
-    const onTouchMove = (e: TouchEvent) => {
-      if (!held() || (e.touches[0]?.clientY ?? touchY) >= touchY) return
-      if (touchSkips) finish()
-      else e.preventDefault()
-    }
 
-    /* ---------- After the clip, scroll drives the walkthrough ---------- */
-    function progress() {
-      const r = el!.getBoundingClientRect()
-      return -r.top / (r.height - stage.offsetHeight)
-    }
+    /* ---------- After the clip: tabs drive the walkthrough ---------- */
     function render(p: number) {
       if (!done) return
       const active = RANGES.findIndex((r) => r && p >= r[0] && p < r[1])
@@ -350,7 +305,7 @@ export function LiveDemo() {
         pane.classList.add('is-on')
       })
       tabs.forEach((t, i) => setTab(t, i === active))
-      // Until the visitor touches it, scroll sweeps the budget down and back.
+      // Until the visitor touches it, the matches pane sweeps the budget down and back.
       if (!touched && active === 1) {
         const t = seg(p, 0.14, 0.38)
         const b = Math.round((1500 - Math.sin(t * Math.PI) * 420) / 10) * 10
@@ -365,76 +320,59 @@ export function LiveDemo() {
       qa.style.opacity = String(seg(p, 0.55, 0.58))
       if (active === 2) status('Building profile: <b>Figueroa Court</b>, 14 reviews from 6 verified residents')
       cmpRows.forEach((r, i) => (r.style.opacity = String(seg(p, 0.645 + i * 0.016, 0.66 + i * 0.016))))
-      fitNum.textContent = String(Math.round(seg(p, 0.64, 0.71) * 86))
+      const fit = String(Math.round(seg(p, 0.64, 0.71) * 86))
+      if (fitNum.textContent !== fit) fitNum.textContent = fit
       if (active === 3) status('Roommate fit: <b>86</b>, one thing to talk about')
       if (active === 4) status('Waiting for your description')
     }
 
-    let target = 0
+    // Plays one pane's animation by moving progress across its span over `ms`.
     let cur = 0
-    let ticking = false
-    function tick() {
-      cur += (target - cur) * 0.16
-      if (Math.abs(target - cur) < 0.0002) cur = target
-      render(cur)
-      if (cur !== target) requestAnimationFrame(tick)
-      else ticking = false
-    }
-    let seenAbove = false
-    function onScroll() {
-      const top = el!.getBoundingClientRect().top
-      const p = progress()
-      target = clamp(p, -1, 1.01)
-      if (!started) {
-        // Start the clip as the stage arrives. Arriving by scroll always plays it, even after a
-        // fling that jumps past in one frame; landing past it without scrolling through skips it.
-        if (top >= window.innerHeight * 0.3) seenAbove = true
-        else if (seenAbove || p <= HOLD) play()
-        else finish()
+    let tween = 0
+    function playSpan(i: number, ms: number) {
+      const span = TAB_SPANS[i]
+      if (!span) return
+      cancelAnimationFrame(tween)
+      const [from, to] = span
+      const start = performance.now()
+      const step = (now: number) => {
+        const k = clamp((now - start) / ms)
+        cur = from + (to - from) * (1 - Math.pow(1 - k, 3))
+        render(cur)
+        if (k < 1) tween = requestAnimationFrame(step)
       }
-      // Overshot while the clip plays (fling, scrollbar drag, keyboard): pull back to the stage.
-      if (playing() && top < -1) {
-        scrollPageTo(holdTop(), false)
-        cur = target = 0
-      }
-      if (!ticking) {
-        ticking = true
-        requestAnimationFrame(tick)
-      }
-    }
-    const onResize = () => {
-      rank()
-      render(cur)
+      tween = requestAnimationFrame(step)
     }
 
-    const scrollToAt = (at: number, smooth = !reduce) => {
-      const top = window.scrollY + el.getBoundingClientRect().top + at * (el.offsetHeight - stage.offsetHeight) + (at ? 2 : 0)
-      scrollPageTo(top, smooth)
-    }
     const tabHandlers = tabs.map((t, i) => {
       const h = () => {
-        const at = TABS[i].at
-        if (at < 0) {
-          scrollToAt(0, false) // jump, so passing through later panes does not end the clip
-          cur = target = 0
+        if (!TAB_SPANS[i]) {
+          cancelAnimationFrame(tween)
+          cur = 0
           play()
           return
         }
-        if (!done) finish()
-        scrollToAt(at)
+        if (!done) finish(false)
+        playSpan(i, i === 1 ? 3600 : 1100)
       }
       t.addEventListener('click', h)
       return h
     })
+    const onResize = () => {
+      rank()
+      render(cur)
+    }
+    let io: IntersectionObserver | null = null
     const replayBtn = $('.ld-replay')
     const skipBtn = $('.ld-skip')
     const onReplay = () => {
-      scrollToAt(0, false) // jump, so passing through later panes does not end the clip
-      cur = target = 0
+      cancelAnimationFrame(tween)
+      cur = 0
       play()
     }
     replayBtn.addEventListener('click', onReplay)
-    skipBtn.addEventListener('click', finish)
+    const onSkip = () => finish()
+    skipBtn.addEventListener('click', onSkip)
 
     rank()
     if (reduce) {
@@ -445,26 +383,28 @@ export function LiveDemo() {
       status(`Top match <b>${topName.textContent}</b>, at ${usd(budget)}`)
       fitNum.textContent = '86'
     } else {
-      window.addEventListener('scroll', onScroll, { passive: true })
+      // Plays once, when most of the panel is on screen. Nothing holds the page: scrolling on
+      // past it simply leaves the clip running (or finished) behind.
+      io = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting && !started) play()
+        },
+        { threshold: 0.45 },
+      )
+      io.observe(el)
       window.addEventListener('resize', onResize)
-      window.addEventListener('wheel', onWheel, { capture: true, passive: false })
-      window.addEventListener('touchstart', onTouchStart, { passive: true })
-      window.addEventListener('touchmove', onTouchMove, { passive: false })
-      onScroll()
     }
 
     return () => {
       cancelAnimationFrame(raf)
       budgetIn.removeEventListener('input', onBudget)
       window.removeEventListener('keydown', onKey)
-      window.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(tween)
+      io?.disconnect()
       window.removeEventListener('resize', onResize)
-      window.removeEventListener('wheel', onWheel, { capture: true })
-      window.removeEventListener('touchstart', onTouchStart)
-      window.removeEventListener('touchmove', onTouchMove)
       tabs.forEach((t, i) => t.removeEventListener('click', tabHandlers[i]))
       replayBtn.removeEventListener('click', onReplay)
-      skipBtn.removeEventListener('click', finish)
+      skipBtn.removeEventListener('click', onSkip)
     }
   }, [])
 
@@ -476,7 +416,6 @@ export function LiveDemo() {
 
   return (
     <section ref={root} className={`ld ${isStatic ? 'ld-static' : ''}`} aria-label="HOMIE, running on sample data">
-      {!isStatic && BEATS.map((p) => <Beat key={p} top={beatTop(p, LD_VH)} />)}
       <div className="ld-stage">
         <div className="shell ld-app">
           <header className="ld-top">
