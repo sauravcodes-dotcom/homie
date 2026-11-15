@@ -2,6 +2,10 @@
 
 **Find your place. Find your people.**
 
+**Live:** https://homie-silk.vercel.app · **Demo video:** see the Devpost page · **Deck:** https://docs.google.com/presentation/d/1BZBlKmTDsgUBp7-wq4ZM9w9_LbCWebHi4gAvqRN_Iug/edit
+
+![AI match: plain-English request, ranked picks with reasons](docs/screenshots/02_ai_picks.png)
+
 HOMIE is an AI-powered student housing network, starting with USC. It connects students who are subleasing, taking over leases, looking for rooms or replacing roommates, and it gives every apartment building an honest, evidence-backed profile built from resident reviews.
 
 | Module | What it does |
